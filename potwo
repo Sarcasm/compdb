@@ -1,0 +1,130 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+
+import argparse
+import logging
+import os
+import sys
+
+__prog__ = os.path.basename(__file__)
+if __prog__.endswith('.py'):
+    __prog__ = __prog__[:-3]
+
+__version__ = '0.0.1'
+
+
+# http://python-3-patterns-idioms-test.readthedocs.org/en/latest/Metaprogramming.html#example-self-registration-of-subclasses
+class CommandRegistry(type):
+    def __init__(cls, name, bases, nmspc):
+        super(CommandRegistry, cls).__init__(name, bases, nmspc)
+        if not hasattr(cls, 'registry'):
+            cls.registry = set()
+        if len(bases) > 0:  # skip the base class
+            cls.registry.add(cls)
+
+    def __iter__(cls):
+        return iter(cls.registry)
+
+    def __str__(cls):
+        if cls in cls.registry:
+            return cls.__name__
+        return cls.__name__ + ": " + ", ".join([sc.__name__ for sc in cls])
+
+
+if sys.version_info[0] < 3:
+
+    class RegisteredCommand():
+        __metaclass__ = CommandRegistry
+else:
+    # Probably a bad idea but the syntax is incompatible in python2
+    exec('class RegisteredCommand(metaclass=CommandRegistry): pass')
+
+
+class HelpCommand(RegisteredCommand):
+    name = 'help'
+    short_help = 'display this help'
+
+    def execute(self, args):
+        print("Available commands:")
+        commands = sorted(RegisteredCommand, key=lambda c: c.name)
+        command_max_len = max(map(len, [c.name for c in commands]))
+        for c in commands:
+            print("    {c.name:<{max_len}}   {c.short_help}".format(
+                c=c,
+                max_len=command_max_len))
+
+
+# TODO: take prog from parser, somehow
+class VersionCommand(RegisteredCommand):
+    name = 'version'
+    short_help = 'display this version of {}'.format(__prog__)
+
+    def options(self, parser):
+        parser.add_argument('--short',
+                            action='store_true',
+                            help='machine readable version')
+
+    def execute(self, args):
+        if args.short:
+            print(__version__)
+        else:
+            print(__prog__, "version", __version__)
+
+
+# remove the redundant metavar from help output
+#
+#     usage: foo <sub-parser metavar>
+#
+#     <sub-parser title>:
+#       <sub-parser metavar>            # <- remove this
+#         command_a      a description
+#         command_b      b description
+#
+# http://stackoverflow.com/a/13429281/951426
+class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    def _format_action(self, action):
+        parts = super(argparse.RawDescriptionHelpFormatter,
+                      self)._format_action(action)
+        if action.nargs == argparse.PARSER:
+            parts = "\n".join(parts.split("\n")[1:])
+        return parts
+
+
+class App:
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(
+            description='A compilation database helper tool.',
+            formatter_class=SubcommandHelpFormatter)
+
+        # http://stackoverflow.com/a/18283730/951426
+        # http://bugs.python.org/issue9253#msg186387
+        subparsers = self.parser.add_subparsers(title='Available commands',
+                                                metavar='<command>',
+                                                dest='command')
+        subparsers.dest = 'command'
+        # subcommand seems to be required by default in python 2.7 but not 3.5,
+        # forcing it to true limit the differences between the two
+        subparsers.required = True
+
+        commands = []
+        for command_cls in RegisteredCommand:
+            command = command_cls()
+            commands.append(command)
+            parser = subparsers.add_parser(command.name,
+                                           help=command.short_help)
+            if callable(getattr(command_cls, 'options', None)):
+                command.options(parser)
+            parser.set_defaults(func=command.execute)
+
+    def run(self):
+        # if no option is specified we default to "help" so we have something
+        # useful to show to the user instead of an error because of missing
+        # subcommand
+        args = self.parser.parse_args(sys.argv[1:] or ["help"])
+        args.func(args)
+
+
+if __name__ == '__main__':
+    app = App()
+    app.run()
