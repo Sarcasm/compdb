@@ -4,14 +4,130 @@ from __future__ import print_function
 
 import argparse
 import logging
+import pprint
 import os
 import sys
+
+import json
+
+import shlex
 
 __prog__ = os.path.basename(__file__)
 if __prog__.endswith('.py'):
     __prog__ = __prog__[:-3]
 
 __version__ = '0.0.1'
+
+
+class CompilationDatabaseRegistry(type):
+    def __init__(cls, name, bases, nmspc):
+        super(CompilationDatabaseRegistry, cls).__init__(name, bases, nmspc)
+        if not hasattr(cls, 'registry'):
+            cls.registry = set()
+        if len(bases) > 0:  # skip the base class
+            cls.registry.add(cls)
+
+    def __iter__(cls):
+        return iter(cls.registry)
+
+    def __str__(cls):
+        if cls in cls.registry:
+            return cls.__name__
+        return cls.__name__ + ": " + ", ".join([sc.__name__ for sc in cls])
+
+
+if sys.version_info[0] < 3:
+
+    class RegisteredCompilationDatabase():
+        __metaclass__ = CompilationDatabaseRegistry
+else:
+    # Probably a bad idea but the syntax is incompatible in python2
+    exec(
+        'class RegisteredCompilationDatabase(metaclass=CompilationDatabaseRegistry): pass')
+
+
+# could be an "interface"
+class CompileCommand:
+    def __init__(self, directory, file, command):
+        self.directory = directory
+        self.file = file
+        self.command = command
+
+    def __repr__(self):
+        return "{{directory: {},\nfilename: {},\n command: ".format(
+            self.directory, self.file) + pprint.pformat(self.command) + "}\n\n"
+
+    def __str__(self):
+        return self.__repr__()
+
+
+class CompilationDatabase(RegisteredCompilationDatabase):
+    """Mimic clang::tooling::CompilationDatabase interface"""
+
+    @staticmethod
+    def from_directory(directory):
+        """Automatically create a CompilationDatabase from build directory."""
+        # TODO: user should be able to order the compilation databases
+        for cdb_cls in CompilationDatabase:
+            if cdb_cls == CompilationDatabase:
+                # skip ourselves from the class list
+                continue
+            cdb = cdb_cls.from_directory(directory)
+            if cdb:
+                return cdb
+        return None
+
+    def get_compile_commands(self, filepath):
+        """get the compile commands for the given file
+
+        return an iterable of CompileCommand
+        """
+        raise NotImplementedError()
+
+    def get_all_files(self):
+        """return an iterable of path strings"""
+        raise NotImplementedError()
+
+    def get_all_compile_commands(self):
+        """return an iterable of CompileCommand"""
+        raise NotImplementedError()
+
+
+class JSONCompilationDatabase(CompilationDatabase):
+    def __init__(self, json_db_path):
+        self.json_db_path = json_db_path
+
+    @classmethod
+    def from_directory(cls, directory):
+        json_db_path = os.path.join(directory, 'compile_commands.json')
+        return cls(json_db_path) if os.path.exists(json_db_path) else None
+
+    def get_compile_commands(self, filepath):
+        commands = []
+        for elem in self._data:
+            if elem['file'] == filepath:
+                commands.append(self._dict_to_compile_command(elem))
+        return commands
+
+    def get_all_files(self):
+        return map((lambda entry: entry['file']), self._data)
+
+    def get_all_compile_commands(self):
+        # PERFORMANCE: I think shlex is inherently slow,
+        # something performing better may be necessary
+        return list(map(self._dict_to_compile_command, self._data))
+
+    @staticmethod
+    def _dict_to_compile_command(d):
+        return CompileCommand(d['directory'], d['file'],
+                              shlex.split(d['command']))
+
+    @property
+    def _data(self):
+        if not hasattr(self, '__data'):
+            with open(self.json_db_path) as f:
+                self.__data = json.load(f)
+        return self.__data
 
 
 # http://python-3-patterns-idioms-test.readthedocs.org/en/latest/Metaprogramming.html#example-self-registration-of-subclasses
@@ -55,7 +171,6 @@ class HelpCommand(RegisteredCommand):
                 max_len=command_max_len))
 
 
-# TODO: take prog from parser, somehow
 class VersionCommand(RegisteredCommand):
     name = 'version'
     short_help = 'display this version of {}'.format(__prog__)
@@ -70,6 +185,41 @@ class VersionCommand(RegisteredCommand):
             print(__version__)
         else:
             print(__prog__, "version", __version__)
+
+
+class CompilationDatabaseJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, CompileCommand):
+            return {
+                'directory': o.directory,
+                'command': ' '.join(map(shlex.quote, o.command)),
+                'file': o.file,
+            }
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, o)
+
+
+class DumpCommand(RegisteredCommand):
+    name = 'dump'
+    short_help = 'dump a compilation database'
+
+    def options(self, parser):
+        parser.add_argument('-p',
+                            metavar="BUILD-DIR",
+                            help='Build path',
+                            required=True)
+
+    def execute(self, args):
+        build_dir = args.p
+        cdb = CompilationDatabase.from_directory(build_dir)
+        if not cdb:
+            return
+        self.json_dump(cdb.get_all_compile_commands())
+
+    def json_dump(self, compile_commands):
+        print(json.dumps(compile_commands,
+                         cls=CompilationDatabaseJSONEncoder,
+                         indent=2))
 
 
 # remove the redundant metavar from help output
