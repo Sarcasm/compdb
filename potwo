@@ -7,6 +7,7 @@ import logging
 import pprint
 import os
 import sys
+import re
 
 import json
 
@@ -187,16 +188,56 @@ class VersionCommand(RegisteredCommand):
             print(__prog__, "version", __version__)
 
 
-class CompilationDatabaseJSONEncoder(json.JSONEncoder):
-    def default(self, o):
-        if isinstance(o, CompileCommand):
-            return {
-                'directory': o.directory,
-                'command': ' '.join(map(shlex.quote, o.command)),
-                'file': o.file,
-            }
-        # Let the base class default method raise the TypeError
-        return json.JSONEncoder.default(self, o)
+def command_to_json(commands):
+    cmd_line = '"'
+    for i, command in enumerate(commands):
+        if i != 0:
+            cmd_line += ' '
+        has_space = re.search(r"\s", command) is not None
+        # reader now accepts simple quotes, so we need to support them here too
+        has_simple_quote = "'" in command
+        need_quoting = has_space or has_simple_quote
+        if need_quoting:
+            cmd_line += r'\"'
+        cmd_line += command.replace("\\", r'\\\\').replace(r'"', r'\\\"')
+        if need_quoting:
+            cmd_line += r'\"'
+    return cmd_line + '"'
+
+
+def str_to_json(s):
+    return '"{}"'.format(s.replace("\\", "\\\\").replace('"', r'\"'))
+
+
+def compile_command_to_json(compile_command):
+    return r'''{{
+  "directory": {},
+  "command": {},
+  "file": {}
+}}'''.format(
+        str_to_json(compile_command.directory),
+        command_to_json(compile_command.command),
+        str_to_json(compile_command.file))
+
+
+def compile_commands_to_json(compile_commands, fp):
+    """
+    Dump Json.
+
+    Parameters
+    ----------
+    compile_commands : CompileCommand iterable
+    fp
+        A file-like object, JSON is written to this element.
+    """
+    fp.write('[\n')
+    for i, command in enumerate(compile_commands):
+        if i != 0:
+            fp.write(',\n\n')
+        fp.write(compile_command_to_json(command))
+    if compile_commands:
+        fp.write('\n')
+    fp.write(']\n')
 
 
 class DumpCommand(RegisteredCommand):
