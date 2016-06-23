@@ -255,12 +255,27 @@ class DumpCommand(RegisteredCommand):
         cdb = CompilationDatabase.from_directory(build_dir)
         if not cdb:
             return
-        self.json_dump(cdb.get_all_compile_commands())
+        compile_commands_to_json(cdb.get_all_compile_commands(), sys.stdout)
 
-    def json_dump(self, compile_commands):
-        print(json.dumps(compile_commands,
-                         cls=CompilationDatabaseJSONEncoder,
-                         indent=2))
+
+class FindCommand(RegisteredCommand):
+    name = 'find'
+    short_help = 'find compile command(s) for a file'
+
+    def options(self, parser):
+        parser.add_argument('-p',
+                            metavar="BUILD-DIR",
+                            help='Build path',
+                            required=True)
+        parser.add_argument('file')
+
+    def execute(self, args):
+        build_dir = args.p
+        cdb = CompilationDatabase.from_directory(build_dir)
+        if not cdb:
+            return
+        compile_commands_to_json(
+            cdb.get_compile_commands(args.file), sys.stdout)
 
 
 # remove the redundant metavar from help output
