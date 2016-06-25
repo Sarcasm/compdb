@@ -141,7 +141,7 @@ class CommandRegistry(type):
             cls.registry.add(cls)
 
     def __iter__(cls):
-        return iter(cls.registry)
+        return iter(sorted(cls.registry, key=lambda c: c.name))
 
     def __str__(cls):
         if cls in cls.registry:
@@ -164,9 +164,8 @@ class HelpCommand(RegisteredCommand):
 
     def execute(self, args):
         print("Available commands:")
-        commands = sorted(RegisteredCommand, key=lambda c: c.name)
-        command_max_len = max(map(len, [c.name for c in commands]))
-        for c in commands:
+        command_max_len = max(map(len, [c.name for c in RegisteredCommand]))
+        for c in RegisteredCommand:
             print("    {c.name:<{max_len}}   {c.short_help}".format(
                 c=c,
                 max_len=command_max_len))
