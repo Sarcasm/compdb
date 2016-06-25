@@ -4,15 +4,14 @@ from __future__ import print_function
 
 import argparse
 import itertools
+import json
 import logging
 import pprint
 import os
-import sys
 import re
-
-import json
-
 import shlex
+import sys
+import textwrap
 
 __prog__ = os.path.basename(__file__)
 if __prog__.endswith('.py'):
@@ -176,20 +175,20 @@ else:
 
 class HelpCommand(RegisteredCommand):
     name = 'help'
-    short_help = 'display this help'
+    help_short = 'display this help'
 
     def execute(self, args):
         print("Available commands:")
         command_max_len = max(map(len, [c.name for c in RegisteredCommand]))
         for c in RegisteredCommand:
-            print("    {c.name:<{max_len}}   {c.short_help}".format(
+            print("    {c.name:<{max_len}}   {c.help_short}".format(
                 c=c,
                 max_len=command_max_len))
 
 
 class VersionCommand(RegisteredCommand):
     name = 'version'
-    short_help = 'display this version of {}'.format(__prog__)
+    help_short = 'display this version of {}'.format(__prog__)
 
     def options(self, parser):
         parser.add_argument('--short',
@@ -257,7 +256,7 @@ def compile_commands_to_json(compile_commands, fp):
 
 class DumpCommand(RegisteredCommand):
     name = 'dump'
-    short_help = 'dump a compilation database'
+    help_short = 'dump a compilation database'
 
     def options(self, parser):
         parser.add_argument('-p',
@@ -276,14 +275,17 @@ class DumpCommand(RegisteredCommand):
 
 class FindCommand(RegisteredCommand):
     name = 'find'
-    short_help = 'find compile command(s) for a file'
+    help_short = 'find compile command(s) for a file'
+    help_detail = 'Exit with status 1 if no compile command is found.'
 
     def options(self, parser):
         parser.add_argument('-p',
                             metavar="BUILD-DIR",
                             help='Build path',
                             required=True)
-        parser.add_argument('file')
+        parser.add_argument(
+            'file',
+            help="file to search for in the compilation database")
 
     def execute(self, args):
         build_dir = args.p
@@ -317,6 +319,31 @@ class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
         return parts
 
 
+def term_columns():
+    columns = 80
+
+    if os.isatty(sys.stdout.fileno()):
+        try:
+            columns = int(os.environ["COLUMNS"])
+        except (KeyError, ValueError):
+            try:
+                import fcntl, termios, struct
+                columns = struct.unpack('HHHH', fcntl.ioctl(
+                    sys.stdout.fileno(), termios.TIOCGWINSZ,
+                    struct.pack('HHHH', 0, 0, 0, 0)))[1]
+            except (ImportError, IOError):
+                pass
+    return columns
+
+
+def wrap_paragraphs(text):
+    paragraph_width = term_columns()
+    if paragraph_width > 2:
+        paragraph_width -= 2
+    paragraphs = text.split('\n\n')
+    return "\n\n".join(map(lambda s: textwrap.fill(s.strip(), width=paragraph_width), paragraphs))
+
+
 class App:
     def __init__(self):
         self.parser = argparse.ArgumentParser(
@@ -337,10 +364,27 @@ class App:
         for command_cls in RegisteredCommand:
             command = command_cls()
             commands.append(command)
+
+            command_description = command.help_short.capitalize()
+            if not command_description.endswith('.'):
+                command_description += "."
+
+            # Format detail description, line wrap manually so that unlike the
+            # default formatter_class used for subparser we can have
+            # newlines/paragraphs in the detailed description.
+            if hasattr(command, 'help_detail'):
+                command_description += "\n\n"
+                command_description += textwrap.dedent(command.help_detail)
+
+            command_description = textwrap.dedent("""
+            description:
+            """) + wrap_paragraphs(command_description)
+
             parser = subparsers.add_parser(
                 command.name,
-                description=getattr(command, 'description', None),
-                help=command.short_help)
+                formatter_class=argparse.RawDescriptionHelpFormatter,
+                help=command.help_short,
+                epilog=command_description)
             if callable(getattr(command_cls, 'options', None)):
                 command.options(parser)
             parser.set_defaults(func=command.execute)
