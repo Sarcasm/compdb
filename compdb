@@ -69,7 +69,7 @@ class CompileCommand:
         self.command = command
 
     def __repr__(self):
-        return "{{directory: {},\nfilename: {},\n command: ".format(
+        return "{{directory: {},\nfile: {},\n command: ".format(
             self.directory, self.file) + pprint.pformat(self.command) + "}\n\n"
 
     def __str__(self):
