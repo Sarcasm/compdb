@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import argparse
+import itertools
 import logging
 import pprint
 import os
@@ -18,6 +19,20 @@ if __prog__.endswith('.py'):
     __prog__ = __prog__[:-3]
 
 __version__ = '0.0.1'
+
+
+# Check if a generator has at least one element.
+#
+# Since we don't want to consume the element the function return a tuple, where
+# the first element is a boolean telling whether or not the generator is empty,
+# and the second element is a new generator where the first element has been put
+# back.
+def empty_iterator_wrap(iterator):
+    try:
+        first = next(iterator)
+    except StopIteration:
+        return True, None
+    return False, itertools.chain([first], iterator)
 
 
 class CompilationDatabaseRegistry(type):
@@ -103,12 +118,13 @@ class JSONCompilationDatabase(CompilationDatabase):
         json_db_path = os.path.join(directory, 'compile_commands.json')
         return cls(json_db_path) if os.path.exists(json_db_path) else None
 
+    # TODO: return a generator instead?
     def get_compile_commands(self, filepath):
         commands = []
         for elem in self._data:
             if elem['file'] == filepath:
                 commands.append(self._dict_to_compile_command(elem))
-        return commands
+        return iter(commands)
 
     def get_all_files(self):
         return map((lambda entry: entry['file']), self._data)
@@ -253,7 +269,8 @@ class DumpCommand(RegisteredCommand):
         build_dir = args.p
         cdb = CompilationDatabase.from_directory(build_dir)
         if not cdb:
-            return
+            sys.stderr.write('error: compilation database not found\n')
+            sys.exit(1)
         compile_commands_to_json(cdb.get_all_compile_commands(), sys.stdout)
 
 
@@ -272,9 +289,13 @@ class FindCommand(RegisteredCommand):
         build_dir = args.p
         cdb = CompilationDatabase.from_directory(build_dir)
         if not cdb:
-            return
-        compile_commands_to_json(
-            cdb.get_compile_commands(args.file), sys.stdout)
+            sys.stderr.write('error: compilation database not found\n')
+            sys.exit(1)
+        is_empty, compile_commands = empty_iterator_wrap(
+            cdb.get_compile_commands(args.file))
+        if is_empty:
+            sys.exit(1)
+        compile_commands_to_json(compile_commands, sys.stdout)
 
 
 # remove the redundant metavar from help output
@@ -316,8 +337,10 @@ class App:
         for command_cls in RegisteredCommand:
             command = command_cls()
             commands.append(command)
-            parser = subparsers.add_parser(command.name,
-                                           help=command.short_help)
+            parser = subparsers.add_parser(
+                command.name,
+                description=getattr(command, 'description', None),
+                help=command.short_help)
             if callable(getattr(command_cls, 'options', None)):
                 command.options(parser)
             parser.set_defaults(func=command.execute)
