@@ -260,21 +260,26 @@ def compile_commands_to_json(compile_commands, fp):
 
 class DumpCommand(RegisteredCommand):
     name = 'dump'
-    help_short = 'dump a compilation database'
+    help_short = 'dump the compilation database(s)'
 
     def options(self, parser):
         parser.add_argument('-p',
                             metavar="BUILD-DIR",
-                            help='Build path',
+                            help='build path(s)',
+                            action='append',
                             required=True)
 
     def execute(self, args):
-        build_dir = args.p
-        cdb = CompilationDatabase.from_directory(build_dir)
-        if not cdb:
-            sys.stderr.write('error: compilation database not found\n')
-            sys.exit(1)
-        compile_commands_to_json(cdb.get_all_compile_commands(), sys.stdout)
+        cdbs = []
+        for build_dir in args.p:
+            cdb = CompilationDatabase.from_directory(build_dir)
+            if not cdb:
+                sys.stderr.write('error: compilation database not found\n')
+                sys.exit(1)
+            cdbs.append(cdb)
+        compile_commands_to_json(
+            itertools.chain.from_iterable([cdb.get_all_compile_commands()
+                                           for cdb in cdbs]), sys.stdout)
 
 
 class FindCommand(RegisteredCommand):
@@ -285,7 +290,7 @@ class FindCommand(RegisteredCommand):
     def options(self, parser):
         parser.add_argument('-p',
                             metavar="BUILD-DIR",
-                            help='Build path',
+                            help='build path',
                             required=True)
         parser.add_argument(
             'file',
@@ -546,7 +551,7 @@ class HeaderDbCommand(RegisteredCommand):
     def options(self, parser):
         parser.add_argument('-p',
                             metavar="BUILD-DIR",
-                            help='Build path',
+                            help='build path',
                             required=True)
 
     def execute(self, args):
