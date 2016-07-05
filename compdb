@@ -512,7 +512,7 @@ def make_headerdb(compile_commands_iter, fp):
             header_compile_command = derive_compile_command(norm_abspath,
                                                             compile_command)
             score = score_other_file(src_file, norm_abspath)
-            if score > header_mapping.get(norm_abspath, (-1, None))[0]:
+            if score > header_mapping.get(norm_abspath, (score - 1, None))[0]:
                 header_mapping[norm_abspath] = (score, header_compile_command)
     compile_commands_to_json((cmd for _, cmd in header_mapping.values()), fp)
 
