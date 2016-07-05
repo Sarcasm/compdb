@@ -395,18 +395,92 @@ def get_implicit_header_search_path(compile_command):
                                         compile_command.file))
 
 
+SUBWORD_SEPARATORS_RE = re.compile("[^A-Za-z0-9]")
+
+# The comment is shitty because I don't fully understand what is going.
+# Shamelessly stolen, then modified from:
+# - http://stackoverflow.com/a/29920015/951426
+SUBWORD_CAMEL_SPLIT_RE = re.compile(r"""
+.+?                             # capture text instead of discarding (#1)
+(
+  (?:(?<=[a-z0-9]))             # non-capturing positive lookbehind assertion
+  (?=[A-Z])                     # match first uppercase letter without consuming
+|
+  (?<=[A-Z])                    # an upper char should prefix
+  (?=[A-Z][a-z0-9])             # an upper char, lookahead assertion: does not
+                                # consume the char
+|
+$                               # ignore capture text #1
+)""", re.VERBOSE)
+
+
+# FIXME: could probably do better/clearer but it seems to work for the case I
+# care about
+def subword_split(name):
+    """Split name into subword.
+
+    Split camelCase, lowercase_underscore, and alike into an array of word.
+
+    Subword is the vocabulary stolen from Emacs subword-mode:
+    https://www.gnu.org/software/emacs/manual/html_node/ccmode/Subword-Movement.html
+
+    """
+    words = []
+    for camel_subname in re.split(SUBWORD_SEPARATORS_RE, name):
+        matches = re.finditer(SUBWORD_CAMEL_SPLIT_RE, camel_subname)
+        words.extend([m.group(0) for m in matches])
+    return words
+
+
+# Code shamelessly stolen from: http://stackoverflow.com/a/24547864/951426
+def lcsubstring_length(a, b):
+    """Find the length of the longuest contiguous subsequence of subwords.
+
+    The name is a bit of a misnomer.
+
+    """
+    table = {}
+    l = 0
+    for i, ca in enumerate(a, 1):
+        for j, cb in enumerate(b, 1):
+            if ca == cb:
+                table[i, j] = table.get((i - 1, j - 1), 0) + 1
+                if table[i, j] > l:
+                    l = table[i, j]
+    return l
+
+
 def score_other_file(a, b):
     """Score the similarity of the given file to the other file.
 
     Paths are expected absolute and normalized.
     """
     a_dir, a_filename = os.path.split(os.path.splitext(a)[0])
+    a_subwords = subword_split(a_filename)
     b_dir, b_filename = os.path.split(os.path.splitext(b)[0])
+    b_subwords = subword_split(b_filename)
+
     score = 0
+
+    # score subword
+    # if a.cpp and b.cpp includes a_private.hpp, a.cpp should score better
+    subseq_length = lcsubstring_length(a_subwords, b_subwords)
+    score += 10 * subseq_length
+    # We also penalize the length of the mismatch
+    #
+    # For example:
+    # include/String.hpp
+    # include/SmallString.hpp
+    # test/StringTest.cpp
+    # test/SmallStringTest.cpp
+    #
+    # Here we prefer String.hpp to get the compile options of StringTest over
+    # the one of SmallStringTest.
+    score -= 10 * (len(a_subwords) + len(b_subwords) - 2 * subseq_length)
+
     if a_dir == b_dir:
         score += 50
-    if a_filename == b_filename:
-        score += 50
+
     return score
 
 

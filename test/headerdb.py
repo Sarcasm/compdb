@@ -7,6 +7,7 @@ import imp
 import json
 import operator
 import os
+import re
 import subprocess
 import unittest
 
@@ -71,6 +72,29 @@ def run_headerdb(test_dirname, compile_commands):
 #
 
 
+class Utils(unittest.TestCase):
+    def test_subword_split(self):
+        self.assertEqual(["Camel", "Case"], compdb.subword_split("CamelCase"))
+        self.assertEqual(["camel", "Back"], compdb.subword_split("camelBack"))
+        self.assertEqual(["String", "Ref"], compdb.subword_split("StringRef"))
+        self.assertEqual(["Gst", "Buffer"], compdb.subword_split("GstBuffer"))
+        self.assertEqual(["NS", "String"], compdb.subword_split("NSString"))
+        self.assertEqual(["ALLCAP"], compdb.subword_split("ALLCAP"))
+        self.assertEqual(["nocap"], compdb.subword_split("nocap"))
+        self.assertEqual(["One", "Two", "Three", "Four"],
+                         compdb.subword_split("OneTwoThreeFour"))
+        self.assertEqual(["Foo1", "Bar2"], compdb.subword_split("Foo1Bar2"))
+        self.assertEqual(["123"], compdb.subword_split("123"))
+        self.assertEqual(["lowercase", "underscore"],
+                         compdb.subword_split("lowercase_underscore"))
+        self.assertEqual(["Funny", "Case", "dash"],
+                         compdb.subword_split("FunnyCase-dash"))
+        # this one is debatable, we could have empty strings too
+        self.assertEqual(["underscore"], compdb.subword_split("_underscore_"))
+        self.assertEqual(["with", "dot"], compdb.subword_split("with.dot"))
+        self.assertEqual(["with", "space"], compdb.subword_split("with space"))
+
+
 class HeaderDB(unittest.TestCase):
     def test_01(self):
         test_dirname = 'test_01'
@@ -108,6 +132,32 @@ class HeaderDB(unittest.TestCase):
         self.assertEqual('include/b/b.hpp', compdb_out[1]['file'])
         self.assertEqual('clang++ -Iinclude -DB=1', compdb_out[1]['command'])
 
+    def test_03(self):
+        test_dirname = 'test_03'
+        compdb_in = [
+            compdb.CompileCommand(
+                directory=os.path.join(TEST_DIR, test_dirname),
+                command=['clang++', '-DAB=1'],
+                file='a_b.cpp'),
+            compdb.CompileCommand(
+                directory=os.path.join(TEST_DIR, test_dirname),
+                command=['clang++', '-DA=1'],
+                file='a.cpp'),
+            compdb.CompileCommand(
+                directory=os.path.join(TEST_DIR, test_dirname),
+                command=['clang++', '-DB=1'],
+                file='b.cpp'),
+        ]
+        compdb_out, _ = run_headerdb(test_dirname, compdb_in)
+        self.assertEqual(4, len(compdb_out))
+        self.assertEqual('a.hpp', compdb_out[0]['file'])
+        self.assertEqual('clang++ -DA=1', compdb_out[0]['command'])
+        self.assertEqual('a_private.hpp', compdb_out[1]['file'])
+        self.assertEqual('clang++ -DA=1', compdb_out[1]['command'])
+        self.assertEqual('b.hpp', compdb_out[2]['file'])
+        self.assertEqual('clang++ -DB=1', compdb_out[2]['command'])
+        self.assertEqual('b_private.hpp', compdb_out[3]['file'])
+        self.assertEqual('clang++ -DB=1', compdb_out[3]['command'])
 
 if __name__ == "__main__":
     unittest.main()
