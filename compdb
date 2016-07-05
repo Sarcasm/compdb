@@ -484,8 +484,7 @@ def score_other_file(a, b):
     return score
 
 
-def make_headerdb(compile_commands_iter, fp):
-    # mapping of <header normalized absolute path> -> (score, compile_command)
+def make_headerdb1(compile_commands_iter, parentdb):
     header_mapping = {}
     for compile_command in compile_commands_iter:
         implicit_search_path = get_implicit_header_search_path(compile_command)
@@ -509,12 +508,29 @@ def make_headerdb(compile_commands_iter, fp):
                 else:
                     continue
             norm_abspath = os.path.normpath(header_abspath)
+            # skip files already present in the parent database
+            if norm_abspath in parentdb:
+                continue
             header_compile_command = derive_compile_command(norm_abspath,
                                                             compile_command)
             score = score_other_file(src_file, norm_abspath)
             if score > header_mapping.get(norm_abspath, (score - 1, None))[0]:
                 header_mapping[norm_abspath] = (score, header_compile_command)
-    compile_commands_to_json((cmd for _, cmd in header_mapping.values()), fp)
+    return header_mapping
+
+
+def make_headerdb(compile_commands_iter, fp):
+    # mapping of <header normalized absolute path> -> (score, compile_command)
+    headerdb = {}
+    db_update = make_headerdb1(compile_commands_iter, headerdb)
+    # loop until there is nothing more to resolve
+    # we first get the files directly included by the compilation database
+    # then the files directly included by these files and so on
+    while db_update:
+        headerdb.update(db_update)
+        db_update = make_headerdb1(
+            (cmd for _, cmd in headerdb.values()), headerdb)
+    compile_commands_to_json((cmd for _, cmd in headerdb.values()), fp)
 
 
 class HeaderDbCommand(RegisteredCommand):

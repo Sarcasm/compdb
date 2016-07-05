@@ -159,5 +159,29 @@ class HeaderDB(unittest.TestCase):
         self.assertEqual('b_private.hpp', compdb_out[3]['file'])
         self.assertEqual('clang++ -DB=1', compdb_out[3]['command'])
 
+    def test_04(self):
+        test_dirname = 'test_04'
+        compdb_in = [
+            compdb.CompileCommand(
+                directory=os.path.join(TEST_DIR, test_dirname),
+                command=['clang++', '-DA=1'],
+                file='a.cpp'),
+            compdb.CompileCommand(
+                directory=os.path.join(TEST_DIR, test_dirname),
+                command=['clang++', '-DB=1'],
+                file='b.cpp'),
+        ]
+        compdb_out, _ = run_headerdb(test_dirname, compdb_in)
+        self.assertEqual(4, len(compdb_out))
+        self.assertEqual('a.hpp', compdb_out[0]['file'])
+        self.assertEqual('clang++ -DA=1', compdb_out[0]['command'])
+        self.assertEqual('a.ipp', compdb_out[1]['file'])
+        self.assertEqual('clang++ -DA=1', compdb_out[1]['command'])
+        self.assertEqual('b.hpp', compdb_out[2]['file'])
+        self.assertEqual('clang++ -DB=1', compdb_out[2]['command'])
+        self.assertEqual('b.ipp', compdb_out[3]['file'])
+        self.assertEqual('clang++ -DB=1', compdb_out[3]['command'])
+
+
 if __name__ == "__main__":
     unittest.main()
