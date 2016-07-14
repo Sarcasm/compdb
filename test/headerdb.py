@@ -7,8 +7,8 @@ import imp
 import json
 import operator
 import os
-import re
 import subprocess
+import sys
 import unittest
 
 __prog__ = os.path.basename(__file__)
@@ -17,6 +17,10 @@ if __prog__.endswith('.py'):
 
 LOCAL_PATH = os.path.abspath(os.path.dirname(__file__))
 COMPDB_EXECUTABLE = os.path.join(LOCAL_PATH, '..', 'compdb')
+
+# don't generate python cache file ('compdbc' or __pycache__/) for compdb when
+# running the tests
+sys.dont_write_bytecode = True
 
 compdb = imp.load_source('compdb', COMPDB_EXECUTABLE)
 

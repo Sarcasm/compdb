@@ -2,8 +2,8 @@
 
 import imp
 import os
-import re
 import unittest
+import sys
 
 try:
     from StringIO import StringIO
@@ -12,6 +12,10 @@ except ImportError:
 
 LOCAL_PATH = os.path.abspath(os.path.dirname(__file__))
 COMPDB_EXECUTABLE = os.path.join(LOCAL_PATH, '..', 'compdb')
+
+# don't generate python cache file ('compdbc' or __pycache__/) for compdb when
+# running the tests
+sys.dont_write_bytecode = True
 
 compdb = imp.load_source('compdb', COMPDB_EXECUTABLE)
 
