@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
+from __future__ import print_function, unicode_literals
 
 import argparse
+import io
 import itertools
 import json
-import logging
-import pprint
 import os
+import pprint
 import re
 import shlex
 import sys
@@ -368,7 +368,9 @@ def get_file_includes(path):
     Quote is one of double quote mark '\"' or opening angle bracket '<'.
     """
     includes = []
-    with open(path) as istream:
+    # using io.open() in python 2 reduces unicode/encoding differences
+    # between python 2 and python 3, it will return <unicode> lines
+    with io.open(path, "r") as istream:
         include_pattern = re.compile(
             r'\s*#\s*include\s+(?P<quote>["<])(?P<filename>[^>]+)[">]')
         for line in istream:
