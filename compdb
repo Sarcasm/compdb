@@ -503,13 +503,13 @@ def make_headerdb1(compile_commands_iter, parentdb):
             if quote == '"':
                 candidate = os.path.normpath(os.path.join(implicit_search_path,
                                                           filename))
-                if os.path.exists(candidate):
+                if os.path.isfile(candidate):
                     header_abspath = candidate
             if not header_abspath:
                 for search_path in header_search_paths:
                     candidate = os.path.normpath(os.path.join(search_path,
                                                               filename))
-                    if os.path.exists(candidate):
+                    if os.path.isfile(candidate):
                         header_abspath = candidate
                         break
                 else:

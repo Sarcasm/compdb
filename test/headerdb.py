@@ -201,5 +201,19 @@ class HeaderDB(unittest.TestCase):
                          compdb_out[0]['file'])
         self.assertEqual('clang++ -DYAY=1', compdb_out[0]['command'])
 
+    def test_06(self):
+        test_dirname = 'test_06'
+        compdb_in = [
+            compdb.CompileCommand(
+                directory=os.path.join(TEST_DIR, test_dirname),
+                command=['clang++', '-Iinclude', '-Iinclude/a'],
+                file='a.cpp'),
+        ]
+        compdb_out, _ = run_headerdb(test_dirname, compdb_in)
+        self.assertEqual(1, len(compdb_out))
+        self.assertEqual('include/a/a', compdb_out[0]['file'])
+        self.assertEqual('clang++ -Iinclude -Iinclude/a',
+                         compdb_out[0]['command'])
+
 if __name__ == "__main__":
     unittest.main()
