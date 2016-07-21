@@ -536,7 +536,7 @@ def make_headerdb(compile_commands_iter, fp):
     while db_update:
         headerdb.update(db_update)
         db_update = make_headerdb1(
-            (cmd for _, cmd in headerdb.values()), headerdb)
+            (cmd for _, cmd in db_update.values()), headerdb)
     compile_commands_to_json((cmd for _, cmd in headerdb.values()), fp)
 
 
