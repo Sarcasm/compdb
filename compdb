@@ -518,10 +518,10 @@ def make_headerdb1(compile_commands_iter, parentdb):
             # skip files already present in the parent database
             if norm_abspath in parentdb:
                 continue
-            header_compile_command = derive_compile_command(norm_abspath,
-                                                            compile_command)
             score = score_other_file(src_file, norm_abspath)
             if score > header_mapping.get(norm_abspath, (score - 1, None))[0]:
+                header_compile_command = derive_compile_command(
+                    norm_abspath, compile_command)
                 header_mapping[norm_abspath] = (score, header_compile_command)
     return header_mapping
 
