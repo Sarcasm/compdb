@@ -372,7 +372,7 @@ def get_file_includes(path):
     # between python 2 and python 3, it will return <unicode> lines
     with io.open(path, "r") as istream:
         include_pattern = re.compile(
-            r'\s*#\s*include\s+(?P<quote>["<])(?P<filename>[^>]+)[">]')
+            r'\s*#\s*include\s+(?P<quote>["<])(?P<filename>.+?)[">]')
         for line in istream:
             match = re.match(include_pattern, line)
             if match:
