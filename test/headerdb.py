@@ -5,6 +5,7 @@ from __future__ import print_function, unicode_literals
 
 import errno
 import imp
+import io
 import json
 import operator
 import os
@@ -50,7 +51,7 @@ def mkdir_p(path):
 
 def create_database(compile_commands, build_dir):
     db_path = os.path.join(build_dir, 'compile_commands.json')
-    with open(db_path, 'w') as dbf:
+    with io.open(db_path, 'w', encoding='utf-8') as dbf:
         compdb.compile_commands_to_json(compile_commands, dbf)
 
 
@@ -190,14 +191,19 @@ class HeaderDB(unittest.TestCase):
         compdb_in = [
             compdb.CompileCommand(
                 directory=os.path.join(TEST_DIR, test_dirname),
-                command=['clang++', '-DYAY=1'],
-                file='ČeskýÁČĎÉĚÍŇÓŘŠŤÚŮÝŽáčďéěíňóřšťúůýž.cpp'),
+                command=['clang++', '-DLATIN=1'],
+                file='latin-1-á.cpp'),
+            compdb.CompileCommand(
+                directory=os.path.join(TEST_DIR, test_dirname),
+                command=['clang++', '-DUTF=8'],
+                file='utf-8-á.cpp'),
         ]
         compdb_out, _ = run_headerdb(test_dirname, compdb_in)
-        self.assertEqual(1, len(compdb_out))
-        self.assertEqual('ČeskýÁČĎÉĚÍŇÓŘŠŤÚŮÝŽáčďéěíňóřšťúůýž.hpp',
-                         compdb_out[0]['file'])
-        self.assertEqual('clang++ -DYAY=1', compdb_out[0]['command'])
+        self.assertEqual(2, len(compdb_out))
+        self.assertEqual('latin-1-á.hpp', compdb_out[0]['file'])
+        self.assertEqual('clang++ -DLATIN=1', compdb_out[0]['command'])
+        self.assertEqual('utf-8-á.hpp', compdb_out[1]['file'])
+        self.assertEqual('clang++ -DUTF=8', compdb_out[1]['command'])
 
     def test_06(self):
         test_dirname = 'test_06'

@@ -3,7 +3,7 @@
 from __future__ import print_function, unicode_literals
 
 import argparse
-import io
+import codecs
 import itertools
 import json
 import os
@@ -16,6 +16,30 @@ import textwrap
 __prog__ = os.path.splitext(os.path.basename(__file__))[0]
 
 __version__ = '0.0.1'
+
+
+# The issue this function tries to solve is to have a text writer where unicode
+# data can be written without decoding error. It should work in the following
+# conditions:
+# - python 2 & 3, output to terminal
+# - python 2 & 3, output to a pipe or shell redirection
+#
+# When using python 2, if the program output is redirected to a pipe or file,
+# the output encoding may be set to 'ascii', potentially producing
+# UnicodeEncodeError. Redirections do not seem to cause such issue with python 3
+# but explicit utf-8 encoding seems a sensible choice to output data to be
+# consumed by other programs (e.g: JSON).
+#
+# XXX: maybe using a io.TextIOBase would be more appropriate?
+def get_utf8_writer():
+    """Get unicode writer to output UTF-8 encoded data.
+
+    To be used for JSON dump and alike.
+
+    """
+    if sys.version_info[0] < 3:
+        return codecs.getwriter('utf-8')(sys.stdout)
+    return codecs.getwriter('utf-8')(sys.stdout.buffer)
 
 
 # Check if a generator has at least one element.
@@ -276,8 +300,8 @@ class DumpCommand(RegisteredCommand):
                 sys.exit(1)
             cdbs.append(cdb)
         compile_commands_to_json(
-            itertools.chain.from_iterable([cdb.get_all_compile_commands()
-                                           for cdb in cdbs]), sys.stdout)
+            itertools.chain.from_iterable([cdb.get_all_compile_commands(
+            ) for cdb in cdbs]), get_utf8_writer())
 
 
 class FindCommand(RegisteredCommand):
@@ -304,7 +328,7 @@ class FindCommand(RegisteredCommand):
             cdb.get_compile_commands(args.file))
         if is_empty:
             sys.exit(1)
-        compile_commands_to_json(compile_commands, sys.stdout)
+        compile_commands_to_json(compile_commands, get_utf8_writer())
 
 
 def sanitize_compile_options(compile_command):
@@ -366,15 +390,18 @@ def get_file_includes(path):
     Quote is one of double quote mark '\"' or opening angle bracket '<'.
     """
     includes = []
-    # using io.open() in python 2 reduces unicode/encoding differences
-    # between python 2 and python 3, it will return <unicode> lines
-    with io.open(path, "r") as istream:
+    with open(path, "rb") as istream:
         include_pattern = re.compile(
-            r'\s*#\s*include\s+(?P<quote>["<])(?P<filename>.+?)[">]')
-        for line in istream:
-            match = re.match(include_pattern, line)
-            if match:
-                includes.append(match.groups())
+            br'\s*#\s*include\s+(?P<quote>["<])(?P<filename>.+?)[">]')
+        for b_line in istream:
+            b_match = re.match(include_pattern, b_line)
+            if b_match:
+                u_quote = b_match.group('quote').decode('ascii')
+                try:
+                    u_filename = b_match.group('filename').decode('utf-8')
+                except UnicodeDecodeError:
+                    u_filename = b_match.group('filename').decode('latin-1')
+                includes.append((u_quote, u_filename))
     return includes
 
 
@@ -560,7 +587,8 @@ class HeaderDbCommand(RegisteredCommand):
         if not cdb:
             sys.stderr.write('error: compilation database not found\n')
             sys.exit(1)
-        header_db = make_headerdb(cdb.get_all_compile_commands(), sys.stdout)
+        header_db = make_headerdb(cdb.get_all_compile_commands(),
+                                  get_utf8_writer())
 
 
 # remove the redundant metavar from help output

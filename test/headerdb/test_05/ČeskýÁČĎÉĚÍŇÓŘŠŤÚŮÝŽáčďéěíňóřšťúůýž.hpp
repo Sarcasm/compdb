@@ -1,4 +1,0 @@
-#ifndef UNICODE_FILENAME_HPP_
-#define UNICODE_FILENAME_HPP_
-
-#endif /* !UNICODE_FILENAME_HPP_ */
