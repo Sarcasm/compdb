@@ -13,9 +13,7 @@ import shlex
 import sys
 import textwrap
 
-__prog__ = os.path.basename(__file__)
-if __prog__.endswith('.py'):
-    __prog__ = __prog__[:-3]
+__prog__ = os.path.splitext(os.path.basename(__file__))[0]
 
 __version__ = '0.0.1'
 

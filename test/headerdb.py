@@ -12,9 +12,7 @@ import subprocess
 import sys
 import unittest
 
-__prog__ = os.path.basename(__file__)
-if __prog__.endswith('.py'):
-    __prog__ = __prog__[:-3]
+__prog__ = os.path.splitext(os.path.basename(__file__))[0]
 
 LOCAL_PATH = os.path.abspath(os.path.dirname(__file__))
 COMPDB_EXECUTABLE = os.path.join(LOCAL_PATH, '..', 'compdb')
