@@ -1,0 +1,63 @@
+# -*-conf-*-
+
+# not built
+bindings/go/*
+
+# not built
+lib/Target/WebAssembly/*
+
+# not used by LLVM itself (OTOH Clang uses this)
+include/llvm/ADT/ImmutableList.h
+
+# unused
+include/llvm/CodeGen/MachORelocation.h
+
+# unused
+include/llvm/DebugInfo/CodeView/CodeViewOStream.h
+include/llvm/DebugInfo/CodeView/FunctionId.h
+include/llvm/DebugInfo/CodeView/TypeSymbolEmitter.h
+
+# not built
+include/llvm/DebugInfo/PDB/DIA/DIADataStream.h
+include/llvm/DebugInfo/PDB/DIA/DIAEnumDebugStreams.h
+include/llvm/DebugInfo/PDB/DIA/DIAEnumLineNumbers.h
+include/llvm/DebugInfo/PDB/DIA/DIAEnumSourceFiles.h
+include/llvm/DebugInfo/PDB/DIA/DIAEnumSymbols.h
+include/llvm/DebugInfo/PDB/DIA/DIALineNumber.h
+include/llvm/DebugInfo/PDB/DIA/DIARawSymbol.h
+include/llvm/DebugInfo/PDB/DIA/DIASourceFile.h
+
+# not built
+include/llvm/ExecutionEngine/OProfileWrapper.h
+
+# unused
+include/llvm/Support/Capacity.h
+include/llvm/Support/RegistryParser.h
+include/llvm/Support/Solaris.h
+
+# not built
+lib/ExecutionEngine/IntelJITEvents/*
+
+# unused
+lib/ExecutionEngine/MCJIT/ObjectBuffer.h
+
+# not built
+lib/Fuzzer/*
+
+# not built
+lib/Target/AVR/*
+
+# unused
+lib/Transforms/Instrumentation/MaximumSpanningTree.h
+
+# not built
+test/DebugInfo/Inputs/*
+
+# tablegen include, not C
+test/TableGen/Include.inc
+
+# not built
+test/tools/llvm-cov/Inputs/test.h
+
+# not an include
+unittests/ExecutionEngine/MCJIT/MCJITTests.def

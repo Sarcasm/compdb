@@ -1,0 +1,37 @@
+# -*-conf-*-
+
+# not built
+Modules/CMakeCompilerABI.h
+
+# not built
+Source/CPack/WiX/*
+Source/QtDialog/*
+Source/cmGhsMultiTargetGenerator.h
+Source/cmIDEFlagTable.h
+Source/cmIDEOptions.h
+Source/cmLocalGhsMultiGenerator.h
+Source/cm*VisualStudio*
+# Source/cmVisualStudio*
+Source/cmVS*
+Source/cm*XCode*.h
+
+# these are not really cmake sources
+Tests/*
+
+# unused
+Utilities/KWStyle/Headers/CMakeHeader.h
+
+# not an include
+Utilities/Release/WiX/CustomAction/exports.def
+Utilities/cmbzip2/libbz2.def
+Utilities/cmcurl/lib/Makefile.inc
+
+# unused
+Utilities/cmjsoncpp/include/json/json.h
+Utilities/cmjsoncpp/include/json/version.h
+
+# not built
+Utilities/cmlibarchive/libarchive/config_freebsd.h
+
+# not an include
+Utilities/cmzlib/zlib.def
