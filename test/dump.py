@@ -12,14 +12,7 @@ try:
 except ImportError:
     from io import StringIO
 
-LOCAL_PATH = os.path.abspath(os.path.dirname(__file__))
-COMPDB_EXECUTABLE = os.path.join(LOCAL_PATH, '..', 'compdb')
-
-# don't generate python cache file ('compdbc' or __pycache__/) for compdb when
-# running the tests
-sys.dont_write_bytecode = True
-
-compdb = imp.load_source('compdb', COMPDB_EXECUTABLE)
+from context import compdb
 
 # command: The compile command executed. After JSON unescaping, this must be a
 # valid command to rerun the exact compilation step for the translation unit in

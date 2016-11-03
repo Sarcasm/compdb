@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from __future__ import print_function, unicode_literals
 
 import argparse
@@ -686,8 +684,3 @@ class App:
         # subcommand
         args = self.parser.parse_args(sys.argv[1:] or ["help"])
         args.func(args)
-
-
-if __name__ == '__main__':
-    app = App()
-    app.run()
