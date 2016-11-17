@@ -3,6 +3,7 @@ LOCAL_PATH := $(abspath $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST)))))
 # Customizable variables start here
 
 OUT_DIR=out
+COMPDB=compdb
 
 # Customizable variables end here
 
@@ -78,7 +79,7 @@ Customizable variables (local.mk and command line):
   OUT_DIR  Where to put generated files (default: out)
 endef
 
-.PHONY: help all
+.PHONY: help
 help:
 	@: $(info $(USAGE))
 
@@ -136,7 +137,7 @@ $(STAMP_DIR)/%.filelist: $(STAMP_DIR)/%.source
 	@touch $@
 
 $(STAMP_DIR)/%.headerdb: $(STAMP_DIR)/%.configure
-	compdb headerdb -p $(call build_path,$*) > $(call headerdb_path,$*)
+	$(COMPDB) headerdb -p $(call build_path,$*) > $(call headerdb_path,$*)
 	@touch $@
 
 $(STAMP_DIR)/%.configure: $(STAMP_DIR)/%.source
