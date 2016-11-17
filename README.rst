@@ -43,9 +43,9 @@ TODO: Install with pip_.
 Running the tests
 ~~~~~~~~~~~~~~~~~
 
-To run the test, type::
+To run the tests, type::
 
-  ./test/all.py
+  python ./tests/unit
 
 
 Contribute
