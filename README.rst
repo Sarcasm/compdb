@@ -38,17 +38,17 @@ Getting started
 Installation
 ~~~~~~~~~~~~
 
-(TODO) Install with pip_::
+Install with pip_::
 
   pip install compdb
-
-From Github::
-
-  pip install git+https://github.com/Sarcasm/compdb.git#egg=compdb
 
 From Github, as user::
 
   pip install --user git+https://github.com/Sarcasm/compdb.git#egg=compdb
+
+For development::
+
+  pip install --user -e .
 
 With setuptools::
 

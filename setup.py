@@ -15,7 +15,7 @@ with open(path.join(local_path, 'README.rst'), encoding='utf-8') as f:
 setup(
     name='compdb',
     version=compdb.__version__,
-    description='Compilation database utilities',
+    description='The compilation database Swiss army knife',
     long_description=long_desc,
     url='https://github.com/Sarcasm/compdb',
     author='Guillaume Papin',
