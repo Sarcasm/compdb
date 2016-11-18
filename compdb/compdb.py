@@ -141,13 +141,12 @@ class JSONCompilationDatabase(CompilationDatabase):
         json_db_path = os.path.join(directory, 'compile_commands.json')
         return cls(json_db_path) if os.path.exists(json_db_path) else None
 
-    # TODO: return a generator instead?
     def get_compile_commands(self, filepath):
-        commands = []
+        filepath = os.path.abspath(filepath)
         for elem in self._data:
-            if elem['file'] == filepath:
-                commands.append(self._dict_to_compile_command(elem))
-        return iter(commands)
+            if os.path.abspath(os.path.join(elem['directory'], elem[
+                    'file'])) == filepath:
+                yield self._dict_to_compile_command(elem)
 
     def get_all_files(self):
         return map((lambda entry: entry['file']), self._data)
