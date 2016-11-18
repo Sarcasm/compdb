@@ -12,7 +12,7 @@ try:
 except ImportError:
     from io import StringIO
 
-from context import compdb
+import compdb.compdb as compdb
 
 # command: The compile command executed. After JSON unescaping, this must be a
 # valid command to rerun the exact compilation step for the translation unit in
@@ -52,6 +52,7 @@ COMPILE_COMMANDS_TO_JSON_DATA = (
 ]
 """)
 
+
 class ToJSON(unittest.TestCase):
     def test_command_to_json(self):
         for tpl in COMMAND_TO_JSON_DATA:
@@ -59,7 +60,8 @@ class ToJSON(unittest.TestCase):
 
     def test_compile_commands_to_json(self):
         output = StringIO()
-        compdb.compile_commands_to_json(COMPILE_COMMANDS_TO_JSON_DATA[0], output)
+        compdb.compile_commands_to_json(COMPILE_COMMANDS_TO_JSON_DATA[0],
+                                        output)
         self.assertEqual(COMPILE_COMMANDS_TO_JSON_DATA[1], output.getvalue())
 
 

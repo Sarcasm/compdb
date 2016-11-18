@@ -4,7 +4,7 @@ from __future__ import print_function, unicode_literals, absolute_import
 
 import unittest
 
-from context import compdb
+import compdb.compdb as compdb
 
 
 class Utils(unittest.TestCase):
@@ -28,6 +28,7 @@ class Utils(unittest.TestCase):
         self.assertEqual(["underscore"], compdb.subword_split("_underscore_"))
         self.assertEqual(["with", "dot"], compdb.subword_split("with.dot"))
         self.assertEqual(["with", "space"], compdb.subword_split("with space"))
+
 
 if __name__ == "__main__":
     unittest.main()
