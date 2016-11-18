@@ -11,9 +11,9 @@ import shlex
 import sys
 import textwrap
 
-__prog__ = os.path.splitext(os.path.basename(__file__))[0]
+from . import __version__
 
-__version__ = '0.0.1'
+__prog__ = os.path.splitext(os.path.basename(__file__))[0]
 
 
 # The issue this function tries to solve is to have a text writer where unicode
