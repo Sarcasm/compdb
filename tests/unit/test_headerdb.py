@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-
 from __future__ import print_function, unicode_literals, absolute_import
 
 import unittest
 
 import compdb.compdb as compdb
-
 
 class Utils(unittest.TestCase):
     def test_subword_split(self):

@@ -7,7 +7,7 @@ import unittest
 #       python -m unittest discover '--pattern=*.py'
 if __name__ == '__main__':
     local_path = os.path.abspath(os.path.dirname(__file__))
-    top_level = os.path.dirname(os.path.dirname(local_path))
+    top_level = os.path.dirname(local_path)
     testsuite = unittest.TestLoader().discover(
         local_path, top_level_dir=top_level, pattern="test_*.py")
     unittest.TextTestRunner(verbosity=1).run(testsuite)

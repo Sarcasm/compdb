@@ -60,7 +60,7 @@ Running the tests
 
 To run the tests, type::
 
-  python ./tests/unit
+  python -m tests
 
 
 Contribute
