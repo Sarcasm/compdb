@@ -5,16 +5,18 @@ from codecs import open
 from os import path
 from setuptools import setup, find_packages
 
-import compdb
-
 local_path = path.abspath(path.dirname(__file__))
 
 with open(path.join(local_path, 'README.rst'), encoding='utf-8') as f:
     long_desc = f.read()
 
+about = {}
+with open(path.join(local_path, "compdb", "__about__.py")) as f:
+    exec(f.read(), about)
+
 setup(
     name='compdb',
-    version=compdb.__version__,
+    version=about['__version__'],
     description='The compilation database Swiss army knife',
     long_description=long_desc,
     url='https://github.com/Sarcasm/compdb',

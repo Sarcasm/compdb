@@ -1,9 +1,10 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
-# The version as used in the setup.py
-__version__ = '0.0.2'
 
+from compdb.__about__ import __version__
 from compdb.compdb import App
+
+__all__ = ["__version__"]
 
 
 def main():

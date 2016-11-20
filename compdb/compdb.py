@@ -11,7 +11,7 @@ import shlex
 import sys
 import textwrap
 
-from . import __version__
+from compdb.__about__ import __version__
 
 __prog__ = os.path.splitext(os.path.basename(__file__))[0]
 
