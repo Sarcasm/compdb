@@ -88,9 +88,9 @@ Acknowledgments
 .. _clang-tidy: http://clang.llvm.org/extra/clang-tidy/
 .. _compdb: https://github.com/Sarcasm/compdb
 .. _irony-mode: https://github.com/Sarcasm/irony-mode
+.. _JSON Compilation Database: http://clang.llvm.org/docs/JSONCompilationDatabase.html
 .. _libclang: http://clang.llvm.org/doxygen/group__CINDEX.html
 .. _pip: https://pip.pypa.io/
 .. _repo: https://gerrit.googlesource.com/git-repo/
 .. _rtags: https://github.com/Andersbakken/rtags
-.. _JSON Compilation Database: http://clang.llvm.org/docs/JSONCompilationDatabase.html
 .. _ycmd: https://github.com/Valloric/ycmd

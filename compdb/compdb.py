@@ -23,8 +23,9 @@ __prog__ = os.path.splitext(os.path.basename(__file__))[0]
 # - python 2 & 3, output to a pipe or shell redirection
 #
 # When using python 2, if the program output is redirected to a pipe or file,
-# the output encoding may be set to 'ascii', potentially producing
-# UnicodeEncodeError. Redirections do not seem to cause such issue with python 3
+# the output encoding may be set to 'ascii',
+# potentially producing UnicodeEncodeError.
+# Redirections do not seem to cause such issue with python 3
 # but explicit utf-8 encoding seems a sensible choice to output data to be
 # consumed by other programs (e.g: JSON).
 #
@@ -42,10 +43,10 @@ def get_utf8_writer():
 
 # Check if a generator has at least one element.
 #
-# Since we don't want to consume the element the function return a tuple, where
-# the first element is a boolean telling whether or not the generator is empty,
-# and the second element is a new generator where the first element has been put
-# back.
+# Since we don't want to consume the element the function return a tuple.
+# The first element is a boolean telling whether or not the generator is empty.
+# The second element is a new generator where the first element has been
+# put back.
 def empty_iterator_wrap(iterator):
     try:
         first = next(iterator)
@@ -55,20 +56,20 @@ def empty_iterator_wrap(iterator):
 
 
 class CompilationDatabaseRegistry(type):
-    def __init__(cls, name, bases, nmspc):
-        super(CompilationDatabaseRegistry, cls).__init__(name, bases, nmspc)
-        if not hasattr(cls, 'registry'):
-            cls.registry = set()
+    def __init__(self, name, bases, nmspc):
+        super(CompilationDatabaseRegistry, self).__init__(name, bases, nmspc)
+        if not hasattr(self, 'registry'):
+            self.registry = set()
         if len(bases) > 0:  # skip the base class
-            cls.registry.add(cls)
+            self.registry.add(self)
 
-    def __iter__(cls):
-        return iter(cls.registry)
+    def __iter__(self):
+        return iter(self.registry)
 
-    def __str__(cls):
-        if cls in cls.registry:
-            return cls.__name__
-        return cls.__name__ + ": " + ", ".join([sc.__name__ for sc in cls])
+    def __str__(self):
+        if self in self.registry:
+            return self.__name__
+        return self.__name__ + ": " + ", ".join([sc.__name__ for sc in self])
 
 
 if sys.version_info[0] < 3:
@@ -77,8 +78,9 @@ if sys.version_info[0] < 3:
         __metaclass__ = CompilationDatabaseRegistry
 else:
     # Probably a bad idea but the syntax is incompatible in python2
-    exec(
-        'class RegisteredCompilationDatabase(metaclass=CompilationDatabaseRegistry): pass')
+    exec("""class RegisteredCompilationDatabase(
+        metaclass=CompilationDatabaseRegistry):
+    pass""")
 
 
 # could be an "interface"
@@ -171,20 +173,20 @@ class JSONCompilationDatabase(CompilationDatabase):
 
 # http://python-3-patterns-idioms-test.readthedocs.org/en/latest/Metaprogramming.html#example-self-registration-of-subclasses
 class CommandRegistry(type):
-    def __init__(cls, name, bases, nmspc):
-        super(CommandRegistry, cls).__init__(name, bases, nmspc)
-        if not hasattr(cls, 'registry'):
-            cls.registry = set()
+    def __init__(self, name, bases, nmspc):
+        super(CommandRegistry, self).__init__(name, bases, nmspc)
+        if not hasattr(self, 'registry'):
+            self.registry = set()
         if len(bases) > 0:  # skip the base class
-            cls.registry.add(cls)
+            self.registry.add(self)
 
-    def __iter__(cls):
-        return iter(sorted(cls.registry, key=lambda c: c.name))
+    def __iter__(self):
+        return iter(sorted(self.registry, key=lambda c: c.name))
 
-    def __str__(cls):
-        if cls in cls.registry:
-            return cls.__name__
-        return cls.__name__ + ": " + ", ".join([sc.__name__ for sc in cls])
+    def __str__(self):
+        if self in self.registry:
+            return self.__name__
+        return self.__name__ + ": " + ", ".join([sc.__name__ for sc in self])
 
 
 if sys.version_info[0] < 3:
@@ -205,8 +207,7 @@ class HelpCommand(RegisteredCommand):
         command_max_len = max(map(len, [c.name for c in RegisteredCommand]))
         for c in RegisteredCommand:
             print("    {c.name:<{max_len}}   {c.help_short}".format(
-                c=c,
-                max_len=command_max_len))
+                c=c, max_len=command_max_len))
 
 
 class VersionCommand(RegisteredCommand):
@@ -214,9 +215,8 @@ class VersionCommand(RegisteredCommand):
     help_short = 'display this version of {}'.format(__prog__)
 
     def options(self, parser):
-        parser.add_argument('--short',
-                            action='store_true',
-                            help='machine readable version')
+        parser.add_argument(
+            '--short', action='store_true', help='machine readable version')
 
     def execute(self, args):
         if args.short:
@@ -282,11 +282,12 @@ class DumpCommand(RegisteredCommand):
     help_short = 'dump the compilation database(s)'
 
     def options(self, parser):
-        parser.add_argument('-p',
-                            metavar="BUILD-DIR",
-                            help='build path(s)',
-                            action='append',
-                            required=True)
+        parser.add_argument(
+            '-p',
+            metavar="BUILD-DIR",
+            help='build path(s)',
+            action='append',
+            required=True)
 
     def execute(self, args):
         cdbs = []
@@ -297,8 +298,9 @@ class DumpCommand(RegisteredCommand):
                 sys.exit(1)
             cdbs.append(cdb)
         compile_commands_to_json(
-            itertools.chain.from_iterable([cdb.get_all_compile_commands(
-            ) for cdb in cdbs]), get_utf8_writer())
+            itertools.chain.from_iterable([cdb.get_all_compile_commands()
+                                           for cdb in cdbs]),
+            get_utf8_writer())
 
 
 class FindCommand(RegisteredCommand):
@@ -307,13 +309,10 @@ class FindCommand(RegisteredCommand):
     help_detail = 'Exit with status 1 if no compile command is found.'
 
     def options(self, parser):
-        parser.add_argument('-p',
-                            metavar="BUILD-DIR",
-                            help='build path',
-                            required=True)
         parser.add_argument(
-            'file',
-            help="file to search for in the compilation database")
+            '-p', metavar="BUILD-DIR", help='build path', required=True)
+        parser.add_argument(
+            'file', help="file to search for in the compilation database")
 
     def execute(self, args):
         build_dir = args.p
@@ -351,8 +350,8 @@ def sanitize_compile_options(compile_command):
             continue
         # skip input file
         if command[i].endswith(filename):
-            arg_norm = os.path.normpath(os.path.join(compile_command.directory,
-                                                     command[i]))
+            arg_norm = os.path.normpath(
+                os.path.join(compile_command.directory, command[i]))
             if file_norm == arg_norm:
                 i += 1
                 continue
@@ -370,7 +369,7 @@ def mimic_path_relativity(path, other, default_dir):
         return os.path.join(default_dir, path)
     if os.path.isabs(path):
         return os.path.relpath(path, default_dir)
-    return new
+    return path
 
 
 def derive_compile_command(header_file, reference):
@@ -420,8 +419,8 @@ def extract_include_dirs(compile_command):
 
 
 def get_implicit_header_search_path(compile_command):
-    return os.path.dirname(os.path.join(compile_command.directory,
-                                        compile_command.file))
+    return os.path.dirname(
+        os.path.join(compile_command.directory, compile_command.file))
 
 
 SUBWORD_SEPARATORS_RE = re.compile("[^A-Za-z0-9]")
@@ -430,16 +429,16 @@ SUBWORD_SEPARATORS_RE = re.compile("[^A-Za-z0-9]")
 # Shamelessly stolen, then modified from:
 # - http://stackoverflow.com/a/29920015/951426
 SUBWORD_CAMEL_SPLIT_RE = re.compile(r"""
-.+?                             # capture text instead of discarding (#1)
+.+?                          # capture text instead of discarding (#1)
 (
-  (?:(?<=[a-z0-9]))             # non-capturing positive lookbehind assertion
-  (?=[A-Z])                     # match first uppercase letter without consuming
+  (?:(?<=[a-z0-9]))          # non-capturing positive lookbehind assertion
+  (?=[A-Z])                  # match first uppercase letter without consuming
 |
-  (?<=[A-Z])                    # an upper char should prefix
-  (?=[A-Z][a-z0-9])             # an upper char, lookahead assertion: does not
-                                # consume the char
+  (?<=[A-Z])                 # an upper char should prefix
+  (?=[A-Z][a-z0-9])          # an upper char, lookahead assertion: does not
+                             # consume the char
 |
-$                               # ignore capture text #1
+$                            # ignore capture text #1
 )""", re.VERBOSE)
 
 
@@ -523,14 +522,14 @@ def make_headerdb1(compile_commands_iter, parentdb):
             header_abspath = None
             score = 0
             if quote == '"':
-                candidate = os.path.normpath(os.path.join(implicit_search_path,
-                                                          filename))
+                candidate = os.path.normpath(
+                    os.path.join(implicit_search_path, filename))
                 if os.path.isfile(candidate):
                     header_abspath = candidate
             if not header_abspath:
                 for search_path in header_search_paths:
-                    candidate = os.path.normpath(os.path.join(search_path,
-                                                              filename))
+                    candidate = os.path.normpath(
+                        os.path.join(search_path, filename))
                     if os.path.isfile(candidate):
                         header_abspath = candidate
                         break
@@ -557,8 +556,8 @@ def make_headerdb(compile_commands_iter, fp):
     # then the files directly included by these files and so on
     while db_update:
         headerdb.update(db_update)
-        db_update = make_headerdb1(
-            (cmd for _, cmd in db_update.values()), headerdb)
+        db_update = make_headerdb1((cmd for _, cmd in db_update.values()),
+                                   headerdb)
     compile_commands_to_json((cmd for _, cmd in headerdb.values()), fp)
 
 
@@ -573,10 +572,8 @@ class HeaderDbCommand(RegisteredCommand):
     """
 
     def options(self, parser):
-        parser.add_argument('-p',
-                            metavar="BUILD-DIR",
-                            help='build path',
-                            required=True)
+        parser.add_argument(
+            '-p', metavar="BUILD-DIR", help='build path', required=True)
 
     def execute(self, args):
         build_dir = args.p
@@ -584,8 +581,7 @@ class HeaderDbCommand(RegisteredCommand):
         if not cdb:
             sys.stderr.write('error: compilation database not found\n')
             sys.exit(1)
-        header_db = make_headerdb(cdb.get_all_compile_commands(),
-                                  get_utf8_writer())
+        make_headerdb(cdb.get_all_compile_commands(), get_utf8_writer())
 
 
 # remove the redundant metavar from help output
@@ -615,7 +611,7 @@ def term_columns():
             columns = int(os.environ["COLUMNS"])
         except (KeyError, ValueError):
             try:
-                import fcntl, termios, struct
+                import fcntl, termios, struct  # noqa: E401
                 columns = struct.unpack('HHHH', fcntl.ioctl(
                     sys.stdout.fileno(), termios.TIOCGWINSZ,
                     struct.pack('HHHH', 0, 0, 0, 0)))[1]
@@ -629,7 +625,9 @@ def wrap_paragraphs(text):
     if paragraph_width > 2:
         paragraph_width -= 2
     paragraphs = text.split('\n\n')
-    return "\n\n".join(map(lambda s: textwrap.fill(s.strip(), width=paragraph_width), paragraphs))
+    return "\n\n".join(map(lambda s:
+                           textwrap.fill(s.strip(), width=paragraph_width),
+                           paragraphs))
 
 
 class App:
@@ -640,9 +638,8 @@ class App:
 
         # http://stackoverflow.com/a/18283730/951426
         # http://bugs.python.org/issue9253#msg186387
-        subparsers = self.parser.add_subparsers(title='Available commands',
-                                                metavar='<command>',
-                                                dest='command')
+        subparsers = self.parser.add_subparsers(
+            title='Available commands', metavar='<command>', dest='command')
         subparsers.dest = 'command'
         # subcommand seems to be required by default in python 2.7 but not 3.5,
         # forcing it to true limit the differences between the two

@@ -4,6 +4,7 @@ import unittest
 
 import compdb.compdb as compdb
 
+
 class Utils(unittest.TestCase):
     def test_subword_split(self):
         self.assertEqual(["Camel", "Case"], compdb.subword_split("CamelCase"))

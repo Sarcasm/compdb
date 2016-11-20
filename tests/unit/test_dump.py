@@ -1,8 +1,6 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
-import os
 import unittest
-import sys
 
 try:
     from StringIO import StringIO
