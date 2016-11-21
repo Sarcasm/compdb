@@ -98,8 +98,8 @@ class CompileCommand:
         return self.__repr__()
 
     @property
-    def file_abspath(self):
-        return os.path.join(self.directory, self.file)
+    def normfile(self):
+        return os.path.normpath(os.path.join(self.directory, self.file))
 
 
 class CompilationDatabase(RegisteredCompilationDatabase):
@@ -329,7 +329,7 @@ class FindCommand(RegisteredCommand):
 
 def sanitize_compile_options(compile_command):
     filename = os.path.splitext(compile_command.file)[1]
-    file_norm = os.path.normpath(compile_command.file_abspath)
+    file_norm = compile_command.normfile
     adjusted = []
     i = 0
     command = compile_command.command
@@ -517,7 +517,7 @@ def make_headerdb1(compile_commands_iter, parentdb):
     for compile_command in compile_commands_iter:
         implicit_search_path = get_implicit_header_search_path(compile_command)
         header_search_paths = extract_include_dirs(compile_command)
-        src_file = os.path.normpath(compile_command.file_abspath)
+        src_file = compile_command.normfile
         for quote, filename in get_file_includes(src_file):
             header_abspath = None
             score = 0
