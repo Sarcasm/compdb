@@ -620,8 +620,10 @@ def term_columns():
     return columns
 
 
-def wrap_paragraphs(text):
+def wrap_paragraphs(text, max_width=None):
     paragraph_width = term_columns()
+    if max_width and paragraph_width > max_width:
+        paragraph_width = max_width
     if paragraph_width > 2:
         paragraph_width -= 2
     paragraphs = text.split('\n\n')
@@ -663,7 +665,7 @@ class App:
 
             command_description = textwrap.dedent("""
             description:
-            """) + wrap_paragraphs(command_description)
+            """) + wrap_paragraphs(command_description, 120)
 
             parser = subparsers.add_parser(
                 command.name,
