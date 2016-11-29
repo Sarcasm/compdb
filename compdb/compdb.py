@@ -12,6 +12,7 @@ import sys
 import textwrap
 
 from compdb.__about__ import __version__
+import compdb.filelist
 
 __prog__ = os.path.splitext(os.path.basename(__file__))[0]
 
@@ -584,6 +585,35 @@ class HeaderDbCommand(RegisteredCommand):
             sys.stderr.write('error: compilation database not found\n')
             sys.exit(1)
         make_headerdb(cdb.get_all_compile_commands(), get_utf8_writer())
+
+
+class ScanFilesCommand(RegisteredCommand):
+    name = 'scan-files'
+    help_short = 'scan directory for source files'
+    help_detail = """
+    Lookup given paths for source files.
+
+    Source files includes C, C++ files, headers, and more.
+    """
+
+    def options(self, parser):
+        parser.add_argument(
+            'path',
+            nargs='*',
+            default=["."],
+            help="search path(s) (default: %(default)s)")
+        parser.add_argument(
+            '-H',
+            '--include-headers',
+            action='store_true',
+            help="include headers to search")
+
+    def execute(self, args):
+        groups = ['source']
+        if args.include_headers:
+            groups.append('header')
+        for path in compdb.filelist.list_files(groups, args.path):
+            print(path)
 
 
 # remove the redundant metavar from help output
