@@ -151,7 +151,9 @@ class JSONCompilationDatabase(CompilationDatabase):
                 yield self._dict_to_compile_command(elem)
 
     def get_all_files(self):
-        return map((lambda entry: entry['file']), self._data)
+        for entry in self._data:
+            yield os.path.normpath(
+                os.path.join(entry['directory'], entry['file']))
 
     def get_all_compile_commands(self):
         # PERFORMANCE: I think shlex is inherently slow,
