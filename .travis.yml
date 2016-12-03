@@ -1,0 +1,24 @@
+language: python
+python:
+- 2.7
+- 3.3
+- 3.4
+- 3.5
+- 3.6-dev
+- nightly
+- pypy
+
+env: TOXENV=py
+
+matrix:
+  fast_finish: true
+  allow_failures:
+  - python: 3.6-dev
+  - python: nightly
+  include:
+    - python: 3.5
+      env: TOXENV=lint,docs
+
+install: pip install tox
+
+script: tox
