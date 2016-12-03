@@ -62,6 +62,15 @@ To run the tests, type::
 
   python -m tests
 
+Or::
+
+  tox --skip-missing-interpreters
+
+For regression tests on a few open source projects::
+
+  cd tests/regression/headerdb
+  make [all|help]
+
 
 Contribute
 ----------

@@ -2,6 +2,8 @@ from __future__ import print_function, unicode_literals, absolute_import
 
 import argparse
 import codecs
+import fnmatch
+import io
 import itertools
 import json
 import os
@@ -603,17 +605,123 @@ class ScanFilesCommand(RegisteredCommand):
             default=["."],
             help="search path(s) (default: %(default)s)")
         parser.add_argument(
-            '-H',
-            '--include-headers',
-            action='store_true',
-            help="include headers to search")
+            '-g',
+            '--groups',
+            help="restrict search to files of the groups [source,header]",
+            default="source,header")
 
     def execute(self, args):
-        groups = ['source']
-        if args.include_headers:
-            groups.append('header')
+        groups = args.groups.split(',')
+        # join is to have a path separator at the end
+        prefix_to_skip = os.path.join(os.path.abspath('.'), '')
         for path in compdb.filelist.list_files(groups, args.path):
+            # make descendant paths relative
+            if path.startswith(prefix_to_skip):
+                path = path[len(prefix_to_skip):]
             print(path)
+
+
+class CheckDbCommand(RegisteredCommand):
+    name = 'check-db'
+    help_short = 'report files absent from the compilation database'
+    help_detail = """
+    Report files that are found in the workspace
+    but not in the compilation database.
+    And files that are in the compilation database
+    but not found in the workspace.
+
+    Exit with status 1 if some file in the workspace
+    aren't found in the compilation database.
+    """
+
+    def options(self, parser):
+        parser.add_argument(
+            '-p',
+            metavar="BUILD-DIR",
+            help='build path(s)',
+            action='append',
+            required=True)
+        parser.add_argument(
+            'path',
+            nargs='*',
+            default=["."],
+            help="search path(s) (default: %(default)s)")
+        parser.add_argument(
+            '-g',
+            '--groups',
+            help="restrict search to files of the groups [source,header]",
+            default="source,header")
+        parser.add_argument(
+            '--suppressions',
+            action='append',
+            default=[],
+            help='add suppression file')
+
+    def execute(self, args):
+        suppressions = []
+        for supp in args.suppressions:
+            suppressions.extend(
+                self._get_suppressions_patterns_from_file(supp))
+
+        databases = []
+        for build_dir in args.p:
+            cdb = CompilationDatabase.from_directory(build_dir)
+            if not cdb:
+                sys.stderr.write('error: compilation database not found\n')
+                sys.exit(1)
+            databases.append(cdb)
+
+        groups = args.groups.split(',')
+        db_files = frozenset(
+            itertools.chain.from_iterable([cdb.get_all_files()
+                                           for cdb in databases]))
+        list_files = frozenset(compdb.filelist.list_files(groups, args.path))
+
+        # this only is not a hard error, files may be in system paths or build
+        # directory for example
+        db_only = db_files - list_files
+        if db_only:
+            self._print_set_summary(db_only, "compilation database(s)")
+
+        list_only = list_files - db_files
+        # filter out suppressions
+        # could convert the fnmatch expression to regex and use re.search()
+        # instead of prefixing */ pattern
+        suppressions = ['*/{}'.format(supp) for supp in suppressions]
+        for supp in suppressions:
+            filterred = set(fnmatch.filter(list_only, supp))
+            list_only -= filterred
+
+        if not list_only:
+            sys.exit(0)
+
+        # print difference an exit with error
+        self._print_set_summary(list_only, "project(s)")
+        print(
+            "error: some files are missing from the compilation database(s)",
+            file=sys.stderr)
+        sys.exit(1)
+
+    @staticmethod
+    def _get_suppressions_patterns_from_file(path):
+        patterns = []
+        with io.open(path, 'r', encoding='utf-8') as f:
+            for line in f:
+                pattern = line.partition('#')[0].rstrip()
+                if pattern:
+                    patterns.append(pattern)
+        return patterns
+
+    @staticmethod
+    def _print_set_summary(files, name):
+        print("Only in {}:".format(name))
+        cwd = os.getcwd()
+        for path in sorted(files):
+            if path.startswith(cwd):
+                pretty_filename = os.path.relpath(path)
+            else:
+                pretty_filename = path
+            print('  {}'.format(pretty_filename))
 
 
 # remove the redundant metavar from help output

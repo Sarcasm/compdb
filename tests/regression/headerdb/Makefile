@@ -3,7 +3,7 @@ LOCAL_PATH := $(abspath $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST)))))
 # Customizable variables start here
 
 OUT_DIR=out
-COMPDB=compdb
+COMPDB=python $(LOCAL_PATH)/../../../compdb
 
 # Customizable variables end here
 
@@ -15,7 +15,7 @@ DOWNLOAD_DIR := $(OUT_DIR)/dl
 SOURCE_DIR := $(OUT_DIR)/src
 STAMP_DIR := $(OUT_DIR)/stamp
 
-STAMP_TYPES := download source configure headerdb filelist verify
+STAMP_TYPES := download source configure headerdb verify
 
 # Make sure none of the targets are considered intermediate
 .PRECIOUS: $(foreach X,$(STAMP_TYPES),$(STAMP_DIR)/%.$X)
@@ -25,8 +25,6 @@ STAMP_TYPES := download source configure headerdb filelist verify
 
 abbreviate_path = $(patsubst $(CURDIR)/%,./%,$1)
 abbreviate_exe_path = $(patsubst $(CURDIR)/%,./%,$1)
-
-FILELIST_VERIFY := $(call abbreviate_exe_path,$(LOCAL_PATH)/filelist_verify.py)
 
 PROJECTS := \
 	cmake \
@@ -58,9 +56,7 @@ archive_path = $(DOWNLOAD_DIR)/$(call archive_name,$1)
 archive_noext = $(basename $(subst .tar.,.tar,$(call archive_name,$1)))
 source_path = $(SOURCE_DIR)/$(call archive_noext,$1)
 build_path = $(BUILD_DIR)/$(call archive_noext,$1)
-compdb_path = $(call build_path,$1)/compile_commands.json
-headerdb_path = $(call build_path,$1)/headerdb.json
-filelist_path = $(call build_path,$1)/filelist
+headerdb_path = $(call build_path,$1)/headerdb
 
 define USAGE
 Usage: $(MAKE) [all|project]
@@ -115,29 +111,17 @@ cleanall:
 $(BUILD_DIR) $(DOWNLOAD_DIR) $(SOURCE_DIR) $(STAMP_DIR):
 	@mkdir -p $@
 
-$(STAMP_DIR)/%.verify: $(STAMP_DIR)/%.headerdb $(STAMP_DIR)/%.filelist
-	$(FILELIST_VERIFY) \
+$(STAMP_DIR)/%.verify: $(STAMP_DIR)/%.headerdb
+	$(COMPDB) check-db -g header \
 		$(foreach SUPP,$($*_SUPPRESSIONS),\
 			--suppressions $(call abbreviate_path,$(SUPP))) \
-		$(call headerdb_path,$*) $(call filelist_path,$*)
-	@touch $@
-
-$(STAMP_DIR)/%.filelist: $(STAMP_DIR)/%.source
-	find $(call source_path,$*) \
-		-name '*.h' \
-		-o -name '*.h++' \
-		-o -name '*.hpp' \
-		-o -name '*.hxx' \
-		-o -name '*.hh' \
-		-o -name '*.H' \
-		-o -name '*.ipp' \
-		-o -name '*.tpp' \
-		-o -name '*.def' \
-		-o -name '*.inc' > $(call filelist_path,$*)
+		-p $(call headerdb_path,$*) \
+		$(call source_path,$*)
 	@touch $@
 
 $(STAMP_DIR)/%.headerdb: $(STAMP_DIR)/%.configure
-	$(COMPDB) headerdb -p $(call build_path,$*) > $(call headerdb_path,$*)
+	@mkdir -p $(call headerdb_path,$*)
+	$(COMPDB) headerdb -p $(call build_path,$*) > $(call headerdb_path,$*)/compile_commands.json
 	@touch $@
 
 $(STAMP_DIR)/%.configure: $(STAMP_DIR)/%.source
