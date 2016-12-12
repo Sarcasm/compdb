@@ -14,7 +14,9 @@ import sys
 import textwrap
 
 from compdb.__about__ import __version__
+
 import compdb.filelist
+import compdb.config
 
 __prog__ = os.path.splitext(os.path.basename(__file__))[0]
 
@@ -207,7 +209,7 @@ class HelpCommand(RegisteredCommand):
     name = 'help'
     help_short = 'display this help'
 
-    def execute(self, args):
+    def execute(self, config, args):
         print("Available commands:")
         command_max_len = max(map(len, [c.name for c in RegisteredCommand]))
         for c in RegisteredCommand:
@@ -223,11 +225,91 @@ class VersionCommand(RegisteredCommand):
         parser.add_argument(
             '--short', action='store_true', help='machine readable version')
 
-    def execute(self, args):
+    def execute(self, config, args):
         if args.short:
             print(__version__)
         else:
             print(__prog__, "version", __version__)
+
+
+class ConfigCommand(RegisteredCommand):
+    name = 'config'
+    help_short = 'get directory and global configuration options'
+
+    def options(self, parser):
+        # http://stackoverflow.com/a/18283730/951426
+        # http://bugs.python.org/issue9253#msg186387
+        subparsers = parser.add_subparsers(
+            title='available subcommands',
+            metavar='<subcommand>',
+            dest='subcommand')
+        subparsers.dest = 'subcommand'
+        # subcommand seems to be required by default in python 2.7 but not 3.5,
+        # forcing it to true limit the differences between the two
+        subparsers.required = True
+
+        subparser = subparsers.add_parser(
+            'print-user-conf',
+            help='print the user configuration path',
+            formatter_class=SubcommandHelpFormatter)
+        subparser.set_defaults(config_func=self.execute_print_user_conf)
+
+        subparser = subparsers.add_parser(
+            'print-local-conf',
+            help='print the project local configuration',
+            formatter_class=SubcommandHelpFormatter)
+        subparser.set_defaults(config_func=self.execute_print_local_conf)
+
+        subparser = subparsers.add_parser(
+            'list',
+            help='list all the configuration keys',
+            formatter_class=SubcommandHelpFormatter)
+        subparser.set_defaults(config_func=self.execute_list)
+
+        subparser = subparsers.add_parser(
+            'dump',
+            help='dump effective configuration',
+            formatter_class=SubcommandHelpFormatter)
+        subparser.set_defaults(config_func=self.execute_dump)
+
+        subparser = subparsers.add_parser(
+            'get',
+            help='get configuration variable effective value',
+            formatter_class=SubcommandHelpFormatter)
+        subparser.set_defaults(config_func=self.execute_get)
+        subparser.add_argument('key', help='the value to get: SECTION.VAR')
+
+    def execute(self, config, args):
+        args.config_func(config, args)
+
+    def execute_print_user_conf(self, config, args):
+        print(compdb.config.get_user_conf())
+
+    def execute_print_local_conf(self, config, args):
+        local_conf = compdb.config.get_local_conf()
+        if not local_conf:
+            print("error: local configuration not found", file=sys.stderr)
+            sys.exit(1)
+        print(local_conf)
+
+    def execute_list(self, config, args):
+        for section_name, section_spec in sorted(
+                config._config_spec._section_to_specs.items()):
+            for key in section_spec.specs:
+                print('{}.{}'.format(section_name, key))
+
+    def execute_dump(self, config, args):
+        compdb.config.make_conf().write(sys.stdout)
+
+    def execute_get(self, config, args):
+        section, sep, var = args.key.partition('.')
+        if not sep:
+            print(
+                "error: invalid key, should be <section>.<variable>",
+                file=sys.stderr)
+            sys.exit(1)
+        section = getattr(config, section)
+        print(getattr(section, var))
 
 
 def command_to_json(commands):
@@ -294,7 +376,7 @@ class DumpCommand(RegisteredCommand):
             action='append',
             required=True)
 
-    def execute(self, args):
+    def execute(self, config, args):
         cdbs = []
         for build_dir in args.p:
             cdb = CompilationDatabase.from_directory(build_dir)
@@ -319,7 +401,7 @@ class FindCommand(RegisteredCommand):
         parser.add_argument(
             'file', help="file to search for in the compilation database")
 
-    def execute(self, args):
+    def execute(self, config, args):
         build_dir = args.p
         cdb = CompilationDatabase.from_directory(build_dir)
         if not cdb:
@@ -580,7 +662,7 @@ class HeaderDbCommand(RegisteredCommand):
         parser.add_argument(
             '-p', metavar="BUILD-DIR", help='build path', required=True)
 
-    def execute(self, args):
+    def execute(self, config, args):
         build_dir = args.p
         cdb = CompilationDatabase.from_directory(build_dir)
         if not cdb:
@@ -610,7 +692,7 @@ class ScanFilesCommand(RegisteredCommand):
             help="restrict search to files of the groups [source,header]",
             default="source,header")
 
-    def execute(self, args):
+    def execute(self, config, args):
         groups = args.groups.split(',')
         # join is to have a path separator at the end
         prefix_to_skip = os.path.join(os.path.abspath('.'), '')
@@ -657,7 +739,7 @@ class CheckDbCommand(RegisteredCommand):
             default=[],
             help='add suppression file')
 
-    def execute(self, args):
+    def execute(self, config, args):
         suppressions = []
         for supp in args.suppressions:
             suppressions.extend(
@@ -772,53 +854,56 @@ def wrap_paragraphs(text, max_width=None):
                            paragraphs))
 
 
-class App:
-    def __init__(self):
-        self.parser = argparse.ArgumentParser(
-            description='A compilation database helper tool.',
-            formatter_class=SubcommandHelpFormatter)
+def main():
+    parser = argparse.ArgumentParser(
+        description='A compilation database helper tool.',
+        formatter_class=SubcommandHelpFormatter)
 
-        # http://stackoverflow.com/a/18283730/951426
-        # http://bugs.python.org/issue9253#msg186387
-        subparsers = self.parser.add_subparsers(
-            title='Available commands', metavar='<command>', dest='command')
-        subparsers.dest = 'command'
-        # subcommand seems to be required by default in python 2.7 but not 3.5,
-        # forcing it to true limit the differences between the two
-        subparsers.required = True
+    # http://stackoverflow.com/a/18283730/951426
+    # http://bugs.python.org/issue9253#msg186387
+    subparsers = parser.add_subparsers(
+        title='available commands', metavar='<command>', dest='command')
+    subparsers.dest = 'command'
+    # subcommand seems to be required by default in python 2.7 but not 3.5,
+    # forcing it to true limit the differences between the two
+    subparsers.required = True
 
-        commands = []
-        for command_cls in RegisteredCommand:
-            command = command_cls()
-            commands.append(command)
+    commands = []
+    config_spec = compdb.config.ConfigSpec()
+    for command_cls in RegisteredCommand:
+        command = command_cls()
+        commands.append(command)
 
-            command_description = command.help_short.capitalize()
-            if not command_description.endswith('.'):
-                command_description += "."
+        command_description = command.help_short.capitalize()
+        if not command_description.endswith('.'):
+            command_description += "."
 
-            # Format detail description, line wrap manually so that unlike the
-            # default formatter_class used for subparser we can have
-            # newlines/paragraphs in the detailed description.
-            if hasattr(command, 'help_detail'):
-                command_description += "\n\n"
-                command_description += textwrap.dedent(command.help_detail)
+        # Format detail description, line wrap manually so that unlike the
+        # default formatter_class used for subparser we can have
+        # newlines/paragraphs in the detailed description.
+        if hasattr(command, 'help_detail'):
+            command_description += "\n\n"
+            command_description += textwrap.dedent(command.help_detail)
 
-            command_description = textwrap.dedent("""
-            description:
-            """) + wrap_paragraphs(command_description, 120)
+        command_description = textwrap.dedent("""
+        description:
+        """) + wrap_paragraphs(command_description, 120)
 
-            parser = subparsers.add_parser(
-                command.name,
-                formatter_class=argparse.RawDescriptionHelpFormatter,
-                help=command.help_short,
-                epilog=command_description)
-            if callable(getattr(command_cls, 'options', None)):
-                command.options(parser)
-            parser.set_defaults(func=command.execute)
+        subparser = subparsers.add_parser(
+            command.name,
+            formatter_class=SubcommandHelpFormatter,
+            help=command.help_short,
+            epilog=command_description)
+        if callable(getattr(command, 'options', None)):
+            command.options(subparser)
+        if callable(getattr(command, 'config_spec', None)):
+            section_spec = config_spec.get_section_spec(command_cls.name)
+            command.config_spec(section_spec)
+        subparser.set_defaults(func=command.execute)
 
-    def run(self):
-        # if no option is specified we default to "help" so we have something
-        # useful to show to the user instead of an error because of missing
-        # subcommand
-        args = self.parser.parse_args(sys.argv[1:] or ["help"])
-        args.func(args)
+    # if no option is specified we default to "help" so we have something
+    # useful to show to the user instead of an error because of missing
+    # subcommand
+    args = parser.parse_args(sys.argv[1:] or ["help"])
+    config = compdb.config.LazyTypedConfig(config_spec)
+    args.func(config, args)

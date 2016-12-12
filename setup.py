@@ -4,6 +4,7 @@
 from codecs import open
 from os import path
 from setuptools import setup, find_packages
+import sys
 
 local_path = path.abspath(path.dirname(__file__))
 
@@ -13,6 +14,14 @@ with open(path.join(local_path, 'README.rst'), encoding='utf-8') as f:
 about = {}
 with open(path.join(local_path, "compdb", "__about__.py")) as f:
     exec(f.read(), about)
+
+dependencies = []
+
+if sys.version_info[0] < 3:
+    # Would be nicer in 'extra_require' with an environment marker (PEP 496),
+    # but this requires a more recent version of setuptools
+    # than provided by Ubuntu 14.04.
+    dependencies.append('configparser')
 
 setup(
     name='compdb',
@@ -43,4 +52,5 @@ setup(
             "compdb=compdb:main",
         ],
     },
+    install_requires=dependencies,
 )
