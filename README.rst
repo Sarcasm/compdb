@@ -92,14 +92,21 @@ Acknowledgments
 
 * repo_: for its ubiquitous command line interface,
   which served as an inspiration
+* scan-build_: for the clear Python package design
+* git_: for the ``git-config`` API
+* `julio.meroh.net`_: for the interesting article serie on `CLI design`_
 
 
 .. _clang-tidy: http://clang.llvm.org/extra/clang-tidy/
+.. _CLI design: https://julio.meroh.net/2013/09/cli-design-series-wrap-up.html
 .. _compdb: https://github.com/Sarcasm/compdb
+.. _git: https://git-scm.com/
 .. _irony-mode: https://github.com/Sarcasm/irony-mode
+.. _julio.meroh.net: https://julio.meroh.net/
 .. _JSON Compilation Database: http://clang.llvm.org/docs/JSONCompilationDatabase.html
 .. _libclang: http://clang.llvm.org/doxygen/group__CINDEX.html
 .. _pip: https://pip.pypa.io/
 .. _repo: https://gerrit.googlesource.com/git-repo/
 .. _rtags: https://github.com/Andersbakken/rtags
+.. _scan-build: https://github.com/rizsotto/scan-build
 .. _ycmd: https://github.com/Valloric/ycmd

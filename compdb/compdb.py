@@ -19,6 +19,7 @@ import compdb.filelist
 import compdb.config
 
 __prog__ = os.path.splitext(os.path.basename(__file__))[0]
+__desc__ = '''The compilation database Swiss army knife'''
 
 
 # The issue this function tries to solve is to have a text writer where unicode
@@ -210,7 +211,12 @@ class HelpCommand(RegisteredCommand):
     help_short = 'display this help'
 
     def execute(self, config, args):
-        print("Available commands:")
+        print('compdb: {}'.format(__desc__))
+        print()
+        print('usage: compdb [general options] '
+              'command [command options] [command arguments]')
+        print()
+        print('available commands:')
         command_max_len = max(map(len, [c.name for c in RegisteredCommand]))
         for c in RegisteredCommand:
             print("    {c.name:<{max_len}}   {c.help_short}".format(
@@ -705,7 +711,7 @@ class ScanFilesCommand(RegisteredCommand):
 
 class CheckDbCommand(RegisteredCommand):
     name = 'check-db'
-    help_short = 'report files absent from the compilation database'
+    help_short = 'report files absent from the compilation database(s)'
     help_detail = """
     Report files that are found in the workspace
     but not in the compilation database.
@@ -856,7 +862,7 @@ def wrap_paragraphs(text, max_width=None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='A compilation database helper tool.',
+        description='{}.'.format(__desc__),
         formatter_class=SubcommandHelpFormatter)
 
     # http://stackoverflow.com/a/18283730/951426
