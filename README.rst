@@ -1,6 +1,12 @@
 compdb: the compilation database Swiss army knife
 =================================================
 
+.. contents:: :local:
+
+
+Introduction
+------------
+
 compdb_ is a command line tool to manipulates compilation databases.
 A compilation database is a database for compile options,
 it has records of which compile options are used to build the files in a project.
