@@ -13,13 +13,12 @@ import shlex
 import sys
 import textwrap
 
-from compdb.__about__ import __version__
+from compdb.__about__ import (__desc__,
+                              __prog__,
+                              __version__, )
 
 import compdb.filelist
 import compdb.config
-
-__prog__ = os.path.splitext(os.path.basename(__file__))[0]
-__desc__ = '''The compilation database Swiss army knife'''
 
 
 # The issue this function tries to solve is to have a text writer where unicode

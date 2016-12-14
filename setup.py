@@ -24,12 +24,12 @@ if sys.version_info[0] < 3:
     dependencies.append('configparser')
 
 setup(
-    name='compdb',
+    name=about['__prog__'],
     version=about['__version__'],
-    description='The compilation database Swiss army knife',
+    description=about['__desc__'],
     long_description=long_desc,
-    url='https://github.com/Sarcasm/compdb',
-    author='Guillaume Papin',
+    url=about['__url__'],
+    author=about['__author__'],
     author_email='guillaume.papin@epitech.eu',
     license='MIT',
     classifiers=[
