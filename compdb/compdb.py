@@ -305,17 +305,12 @@ class ConfigCommand(RegisteredCommand):
                 print('{}.{}'.format(section_name, key))
 
     def execute_dump(self, config, args):
-        compdb.config.make_conf().write(sys.stdout)
+        config.get_config().write(sys.stdout)
 
     def execute_get(self, config, args):
-        section, sep, var = args.key.partition('.')
-        if not sep:
-            print(
-                "error: invalid key, should be <section>.<variable>",
-                file=sys.stderr)
-            sys.exit(1)
+        section, option = compdb.config.parse_key(args.key)
         section = getattr(config, section)
-        print(getattr(section, var))
+        print(getattr(section, option))
 
 
 def command_to_json(commands):
@@ -865,6 +860,14 @@ def main():
         description='{}.'.format(__desc__),
         formatter_class=SubcommandHelpFormatter)
 
+    parser.add_argument(
+        '-c',
+        dest='config_overrides',
+        metavar='NAME[=VALUE]',
+        action='append',
+        default=[],
+        help='set value of configuration variable NAME for this invocation')
+
     # http://stackoverflow.com/a/18283730/951426
     # http://bugs.python.org/issue9253#msg186387
     subparsers = parser.add_subparsers(
@@ -912,4 +915,13 @@ def main():
     # subcommand
     args = parser.parse_args(sys.argv[1:] or ["help"])
     config = compdb.config.LazyTypedConfig(config_spec)
+    if args.config_overrides:
+        # config_overrides is a list of tuples: (var, value)
+        config_overrides = []
+        for override in args.config_overrides:
+            var, sep, value = override.partition('=')
+            if not sep:
+                value = 'yes'
+            config_overrides.append((var, value))
+        config.set_overrides(config_overrides)
     args.func(config, args)

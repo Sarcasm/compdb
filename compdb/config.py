@@ -81,6 +81,24 @@ def make_conf():
     return conf
 
 
+class OptionInvalidError(ValueError):
+    '''Raise when a key string of the form '<section>.<option>' is malformed'''
+
+    def __init__(self, message, key, *args):
+        self.message = message
+        self.key = key
+        super(OptionInvalidError, self).__init__(message, key, *args)
+
+
+def parse_key(key):
+    section, sep, var = key.partition('.')
+    if section and sep and var:
+        return section, var
+    else:
+        raise OptionInvalidError(
+            'invalid key, should be of the form <section>.<variable>', key)
+
+
 class SectionSpec(object):
     def __init__(self):
         self.specs = {}
@@ -117,7 +135,7 @@ class LazyTypedSection():
     def __getattr__(self, name):
         if name not in self._section_spec.specs:
             # requesting an unspecified attribute is an error
-            raise AttributeError
+            raise AttributeError(name)
         if name not in self._section:
             return None
         return self._section_spec.specs[name](self._section[name])
@@ -128,11 +146,36 @@ class LazyTypedConfig():
         self._config = None
         self._config_spec = config_spec
         self._sections = {}
+        self._overrides = []
+
+    def set_overrides(self, overrides):
+        for key, value in overrides:
+            section, opt = parse_key(key)
+            if section not in self._config_spec._section_to_specs or \
+               opt not in self._config_spec._section_to_specs[section].specs:
+                # overriding an unspecified attribute is an error
+                raise AttributeError(key)
+            # check type of key, if the type is wrong an error will be
+            # reported, even if the config override is not given by the command
+            # there is no reason for the user to specify any wrong values
+            self._config_spec._section_to_specs[section].specs[opt](value)
+            self._overrides.append((section, opt, value))
+
+    def get_config(self):
+        if not self._config:
+            self._config = make_conf()
+            self._apply_overrides(self._config)
+        return self._config
+
+    def _apply_overrides(self, config):
+        for section, option, value in self._overrides:
+            if not config.has_section(section):
+                config.add_section(section)
+            config.set(section, option, value)
 
     def __getattr__(self, name):
         human_name = name.replace('_', '-')
-        if not self._config:
-            self._config = make_conf()
+        self.get_config()  # make sure self._config is loaded
         if human_name not in self._sections:
             if human_name not in self._config:
                 # use the empty-dict as a configuration,

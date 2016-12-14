@@ -107,6 +107,8 @@ _compdb() {
   local -a base_opts
   base_opts=(
     '(- :)'{-h,--help}'[show help message and exit]'
+    # TODO: completion for 'section.option=value'
+    '*-c[set value of configuration variable NAME for this invocation]:key:'
   )
 
   local curcontext="$curcontext" state line
