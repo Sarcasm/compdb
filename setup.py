@@ -49,7 +49,7 @@ setup(
     test_suite="tests",
     entry_points={
         "console_scripts": [
-            "compdb=compdb.compdb:main",
+            "compdb=compdb.cli:main",
         ],
     },
     install_requires=dependencies,

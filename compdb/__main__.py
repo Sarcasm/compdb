@@ -7,7 +7,7 @@ import sys
 if __package__ == '':
     sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from compdb.compdb import main  # noqa: E402
+from compdb.cli import main  # noqa: E402
 
 if __name__ == '__main__':
     sys.exit(main())
