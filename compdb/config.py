@@ -101,9 +101,9 @@ def parse_key(key):
             'invalid key, should be of the form <section>.<variable>', key)
 
 
-class SectionSpec(object):
+class SectionSchema(object):
     def __init__(self):
-        self.specs = {}
+        self.schemas = {}
         self.depends = []
 
     def add_dependency(self, other_section):
@@ -111,56 +111,58 @@ class SectionSpec(object):
 
     def register_string(self, name, desc):
         if sys.version_info[0] < 3:
-            exec('self.specs[name] = unicode')
-            self.specs[name] = unicode  # noqa: F821
+            exec('self.schemas[name] = unicode')
+            self.schemas[name] = unicode  # noqa: F821
         else:
-            self.specs[name] = str
+            self.schemas[name] = str
 
     def register_int(self, name, desc):
-        self.specs[name] = int
+        self.schemas[name] = int
 
 
-class ConfigSpec(object):
+class ConfigSchema(object):
     def __init__(self):
-        self._section_to_specs = {}
+        self._section_to_schemas = {}
 
-    def get_section_spec(self, section):
-        self._section_to_specs[section] = SectionSpec()
-        return self._section_to_specs[section]
+    def get_section_schema(self, section):
+        self._section_to_schemas[section] = SectionSchema()
+        return self._section_to_schemas[section]
 
 
 class LazyTypedSection():
-    def __init__(self, section, section_spec):
+    def __init__(self, section, section_schema):
         self._section = section
-        self._section_spec = section_spec
+        self._section_schema = section_schema
 
     def __getattr__(self, name):
-        if name not in self._section_spec.specs:
+        if name not in self._section_schema.schemas:
             # requesting an unspecified attribute is an error
             raise AttributeError(name)
         if name not in self._section:
             return None
-        return self._section_spec.specs[name](self._section[name])
+        return self._section_schema.schemas[name](self._section[name])
 
 
 class LazyTypedConfig():
-    def __init__(self, config_spec):
+    def __init__(self, config_schema):
         self._config = None
-        self._config_spec = config_spec
+        self._config_schema = config_schema
         self._sections = {}
         self._overrides = []
 
     def set_overrides(self, overrides):
         for key, value in overrides:
             section, opt = parse_key(key)
-            if section not in self._config_spec._section_to_specs or \
-               opt not in self._config_spec._section_to_specs[section].specs:
+            if section not in self._config_schema._section_to_schemas or \
+               opt not in \
+               self._config_schema._section_to_schemas[section].schemas:
                 # overriding an unspecified attribute is an error
                 raise AttributeError(key)
             # check type of key, if the type is wrong an error will be
             # reported, even if the config override is not given by the command
             # there is no reason for the user to specify any wrong values
-            self._config_spec._section_to_specs[section].specs[opt](value)
+            self._config_schema._section_to_schemas[section] \
+                               .schemas[opt](value)
             self._overrides.append((section, opt, value))
 
     def get_config(self):
@@ -183,9 +185,9 @@ class LazyTypedConfig():
                 # use the empty-dict as a configuration,
                 # this will make the LazyTypedSection return a default value
                 self._sections[human_name] = LazyTypedSection(
-                    {}, self._config_spec._section_to_specs[human_name])
+                    {}, self._config_schema._section_to_schemas[human_name])
             else:
                 self._sections[human_name] = LazyTypedSection(
                     self._config[human_name],
-                    self._config_spec._section_to_specs[human_name])
+                    self._config_schema._section_to_schemas[human_name])
         return self._sections[human_name]

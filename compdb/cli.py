@@ -164,9 +164,9 @@ class ConfigCommand(RegisteredCommand):
         print(local_conf)
 
     def execute_list(self, config, args):
-        for section_name, section_spec in sorted(
-                config._config_spec._section_to_specs.items()):
-            for key in section_spec.specs:
+        for section_name, section_schema in sorted(
+                config._config_schema._section_to_schemas.items()):
+            for key in section_schema.schemas:
                 print('{}.{}'.format(section_name, key))
 
     def execute_dump(self, config, args):
@@ -459,7 +459,7 @@ def main():
     subparsers.required = True
 
     commands = []
-    config_spec = compdb.config.ConfigSpec()
+    config_schema = compdb.config.ConfigSchema()
     for command_cls in RegisteredCommand:
         command = command_cls()
         commands.append(command)
@@ -486,16 +486,16 @@ def main():
             epilog=command_description)
         if callable(getattr(command, 'options', None)):
             command.options(subparser)
-        if callable(getattr(command, 'config_spec', None)):
-            section_spec = config_spec.get_section_spec(command_cls.name)
-            command.config_spec(section_spec)
+        if callable(getattr(command, 'config_schema', None)):
+            section_schema = config_schema.get_section_schema(command_cls.name)
+            command.config_schema(section_schema)
         subparser.set_defaults(func=command.execute)
 
     # if no option is specified we default to "help" so we have something
     # useful to show to the user instead of an error because of missing
     # subcommand
     args = parser.parse_args(sys.argv[1:] or ["help"])
-    config = compdb.config.LazyTypedConfig(config_spec)
+    config = compdb.config.LazyTypedConfig(config_schema)
     if args.config_overrides:
         # config_overrides is a list of tuples: (var, value)
         config_overrides = []
