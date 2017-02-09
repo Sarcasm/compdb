@@ -111,7 +111,6 @@ class SectionSchema(object):
 
     def register_string(self, name, desc):
         if sys.version_info[0] < 3:
-            exec('self.schemas[name] = unicode')
             self.schemas[name] = unicode  # noqa: F821
         else:
             self.schemas[name] = str
