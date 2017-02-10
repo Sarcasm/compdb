@@ -50,8 +50,9 @@ class CommandRegistry(type):
         super(CommandRegistry, self).__init__(name, bases, nmspc)
         if not hasattr(self, 'registry'):
             self.registry = set()
-        if len(bases) > 0:  # skip the base class
-            self.registry.add(self)
+        # keep only leaf classes
+        self.registry -= set(bases)
+        self.registry.add(self)
 
     def __iter__(self):
         return iter(sorted(self.registry, key=lambda c: c.name))
@@ -71,11 +72,15 @@ else:
     exec('class RegisteredCommand(metaclass=CommandRegistry): pass')
 
 
-class HelpCommand(RegisteredCommand):
+class CommandBase(RegisteredCommand):
+    pass
+
+
+class HelpCommand(CommandBase):
     name = 'help'
     help_short = 'display this help'
 
-    def execute(self, config, args):
+    def execute(self):
         print('compdb: {}'.format(__desc__))
         print()
         print('usage: compdb [general options] '
@@ -88,26 +93,28 @@ class HelpCommand(RegisteredCommand):
                 c=c, max_len=command_max_len))
 
 
-class VersionCommand(RegisteredCommand):
+class VersionCommand(CommandBase):
     name = 'version'
     help_short = 'display this version of {}'.format(__prog__)
 
-    def options(self, parser):
+    @classmethod
+    def options(cls, parser):
         parser.add_argument(
             '--short', action='store_true', help='machine readable version')
 
-    def execute(self, config, args):
-        if args.short:
+    def execute(self):
+        if self.args.short:
             print(__version__)
         else:
             print(__prog__, "version", __version__)
 
 
-class ConfigCommand(RegisteredCommand):
+class ConfigCommand(CommandBase):
     name = 'config'
     help_short = 'get directory and global configuration options'
 
-    def options(self, parser):
+    @classmethod
+    def options(cls, parser):
         # http://stackoverflow.com/a/18283730/951426
         # http://bugs.python.org/issue9253#msg186387
         subparsers = parser.add_subparsers(
@@ -123,66 +130,67 @@ class ConfigCommand(RegisteredCommand):
             'print-user-conf',
             help='print the user configuration path',
             formatter_class=SubcommandHelpFormatter)
-        subparser.set_defaults(config_func=self.execute_print_user_conf)
+        subparser.set_defaults(config_func=cls.execute_print_user_conf)
 
         subparser = subparsers.add_parser(
             'print-local-conf',
             help='print the project local configuration',
             formatter_class=SubcommandHelpFormatter)
-        subparser.set_defaults(config_func=self.execute_print_local_conf)
+        subparser.set_defaults(config_func=cls.execute_print_local_conf)
 
         subparser = subparsers.add_parser(
             'list',
             help='list all the configuration keys',
             formatter_class=SubcommandHelpFormatter)
-        subparser.set_defaults(config_func=self.execute_list)
+        subparser.set_defaults(config_func=cls.execute_list)
 
         subparser = subparsers.add_parser(
             'dump',
             help='dump effective configuration',
             formatter_class=SubcommandHelpFormatter)
-        subparser.set_defaults(config_func=self.execute_dump)
+        subparser.set_defaults(config_func=cls.execute_dump)
 
         subparser = subparsers.add_parser(
             'get',
             help='get configuration variable effective value',
             formatter_class=SubcommandHelpFormatter)
-        subparser.set_defaults(config_func=self.execute_get)
+        subparser.set_defaults(config_func=cls.execute_get)
         subparser.add_argument('key', help='the value to get: SECTION.VAR')
 
-    def execute(self, config, args):
-        args.config_func(config, args)
+    def execute(self):
+        self.args.config_func(self)
 
-    def execute_print_user_conf(self, config, args):
+    def execute_print_user_conf(self):
         print(compdb.config.get_user_conf())
 
-    def execute_print_local_conf(self, config, args):
+    def execute_print_local_conf(self):
         local_conf = compdb.config.get_local_conf()
         if not local_conf:
             print("error: local configuration not found", file=sys.stderr)
             sys.exit(1)
         print(local_conf)
 
-    def execute_list(self, config, args):
+    def execute_list(self):
         for section_name, section_schema in sorted(
-                config._config_schema._section_to_schemas.items()):
+                self.config._config_schema._section_to_schemas.items()):
             for key in section_schema.schemas:
                 print('{}.{}'.format(section_name, key))
 
-    def execute_dump(self, config, args):
-        config.get_config().write(sys.stdout)
+    def execute_dump(self):
+        self.config.get_config().write(sys.stdout)
 
-    def execute_get(self, config, args):
-        section, option = compdb.config.parse_key(args.key)
-        section = getattr(config, section)
+    def execute_get(self):
+        section, option = compdb.config.parse_key(self.args.key)
+        section = getattr(self.config, section)
         print(getattr(section, option))
 
 
-class DumpCommand(RegisteredCommand):
+class DumpCommand(CommandBase):
     name = 'dump'
     help_short = 'dump the compilation database(s)'
 
-    def options(self, parser):
+    @classmethod
+    def options(cls, parser):
         parser.add_argument(
             '-p',
             metavar="BUILD-DIR",
@@ -190,9 +198,9 @@ class DumpCommand(RegisteredCommand):
             action='append',
             required=True)
 
-    def execute(self, config, args):
+    def execute(self):
         cdbs = []
-        for build_dir in args.p:
+        for build_dir in self.args.p:
             cdb = compdb.compdb.CompilationDatabase.from_directory(build_dir)
             if not cdb:
                 sys.stderr.write('error: compilation database not found\n')
@@ -204,32 +212,33 @@ class DumpCommand(RegisteredCommand):
             get_utf8_writer())
 
 
-class FindCommand(RegisteredCommand):
+class FindCommand(CommandBase):
     name = 'find'
     help_short = 'find compile command(s) for a file'
     help_detail = 'Exit with status 1 if no compile command is found.'
 
-    def options(self, parser):
+    @classmethod
+    def options(cls, parser):
         parser.add_argument(
             '-p', metavar="BUILD-DIR", help='build path', required=True)
         parser.add_argument(
             'file', help="file to search for in the compilation database")
 
-    def execute(self, config, args):
-        build_dir = args.p
+    def execute(self):
+        build_dir = self.args.p
         cdb = compdb.compdb.CompilationDatabase.from_directory(build_dir)
         if not cdb:
             sys.stderr.write('error: compilation database not found\n')
             sys.exit(1)
         is_empty, compile_commands = compdb.compdb.empty_iterator_wrap(
-            cdb.get_compile_commands(args.file))
+            cdb.get_compile_commands(self.args.file))
         if is_empty:
             sys.exit(1)
         compdb.compdb.compile_commands_to_json(compile_commands,
                                                get_utf8_writer())
 
 
-class HeaderDbCommand(RegisteredCommand):
+class HeaderDbCommand(CommandBase):
     name = 'headerdb'
     help_short = 'generate header compilation database from compile command(s)'
     help_detail = """
@@ -239,12 +248,13 @@ class HeaderDbCommand(RegisteredCommand):
     Exit with status 1 if no compilation database is found.
     """
 
-    def options(self, parser):
+    @classmethod
+    def options(cls, parser):
         parser.add_argument(
             '-p', metavar="BUILD-DIR", help='build path', required=True)
 
-    def execute(self, config, args):
-        build_dir = args.p
+    def execute(self):
+        build_dir = self.args.p
         cdb = compdb.compdb.CompilationDatabase.from_directory(build_dir)
         if not cdb:
             sys.stderr.write('error: compilation database not found\n')
@@ -253,7 +263,7 @@ class HeaderDbCommand(RegisteredCommand):
                                       get_utf8_writer())
 
 
-class ScanFilesCommand(RegisteredCommand):
+class ScanFilesCommand(CommandBase):
     name = 'scan-files'
     help_short = 'scan directory for source files'
     help_detail = """
@@ -262,7 +272,8 @@ class ScanFilesCommand(RegisteredCommand):
     Source files includes C, C++ files, headers, and more.
     """
 
-    def options(self, parser):
+    @classmethod
+    def options(cls, parser):
         parser.add_argument(
             'path',
             nargs='*',
@@ -274,18 +285,18 @@ class ScanFilesCommand(RegisteredCommand):
             help="restrict search to files of the groups [source,header]",
             default="source,header")
 
-    def execute(self, config, args):
-        groups = args.groups.split(',')
+    def execute(self):
+        groups = self.args.groups.split(',')
         # join is to have a path separator at the end
         prefix_to_skip = os.path.join(os.path.abspath('.'), '')
-        for path in compdb.filelist.list_files(groups, args.path):
+        for path in compdb.filelist.list_files(groups, self.args.path):
             # make descendant paths relative
             if path.startswith(prefix_to_skip):
                 path = path[len(prefix_to_skip):]
             print(path)
 
 
-class CheckDbCommand(RegisteredCommand):
+class CheckDbCommand(CommandBase):
     name = 'check-db'
     help_short = 'report files absent from the compilation database(s)'
     help_detail = """
@@ -298,7 +309,8 @@ class CheckDbCommand(RegisteredCommand):
     aren't found in the compilation database.
     """
 
-    def options(self, parser):
+    @classmethod
+    def options(cls, parser):
         parser.add_argument(
             '-p',
             metavar="BUILD-DIR",
@@ -321,25 +333,26 @@ class CheckDbCommand(RegisteredCommand):
             default=[],
             help='add suppression file')
 
-    def execute(self, config, args):
+    def execute(self):
         suppressions = []
-        for supp in args.suppressions:
+        for supp in self.args.suppressions:
             suppressions.extend(
                 self._get_suppressions_patterns_from_file(supp))
 
         databases = []
-        for build_dir in args.p:
+        for build_dir in self.args.p:
             cdb = compdb.compdb.CompilationDatabase.from_directory(build_dir)
             if not cdb:
                 sys.stderr.write('error: compilation database not found\n')
                 sys.exit(1)
             databases.append(cdb)
 
-        groups = args.groups.split(',')
+        groups = self.args.groups.split(',')
         db_files = frozenset(
             itertools.chain.from_iterable([cdb.get_all_files()
                                            for cdb in databases]))
-        list_files = frozenset(compdb.filelist.list_files(groups, args.path))
+        list_files = frozenset(
+            compdb.filelist.list_files(groups, self.args.path))
 
         # this only is not a hard error, files may be in system paths or build
         # directory for example
@@ -458,38 +471,34 @@ def main():
     # forcing it to true limit the differences between the two
     subparsers.required = True
 
-    commands = []
     config_schema = compdb.config.ConfigSchema()
     for command_cls in RegisteredCommand:
-        command = command_cls()
-        commands.append(command)
-
-        command_description = command.help_short.capitalize()
+        command_description = command_cls.help_short.capitalize()
         if not command_description.endswith('.'):
             command_description += "."
 
         # Format detail description, line wrap manually so that unlike the
         # default formatter_class used for subparser we can have
         # newlines/paragraphs in the detailed description.
-        if hasattr(command, 'help_detail'):
+        if hasattr(command_cls, 'help_detail'):
             command_description += "\n\n"
-            command_description += textwrap.dedent(command.help_detail)
+            command_description += textwrap.dedent(command_cls.help_detail)
 
         command_description = textwrap.dedent("""
         description:
         """) + wrap_paragraphs(command_description, 120)
 
         subparser = subparsers.add_parser(
-            command.name,
+            command_cls.name,
             formatter_class=SubcommandHelpFormatter,
-            help=command.help_short,
+            help=command_cls.help_short,
             epilog=command_description)
-        if callable(getattr(command, 'options', None)):
-            command.options(subparser)
-        if callable(getattr(command, 'config_schema', None)):
+        if callable(getattr(command_cls, 'options', None)):
+            command_cls.options(subparser)
+        if callable(getattr(command_cls, 'config_schema', None)):
             section_schema = config_schema.get_section_schema(command_cls.name)
-            command.config_schema(section_schema)
-        subparser.set_defaults(func=command.execute)
+            command_cls.config_schema(section_schema)
+        subparser.set_defaults(cls=command_cls)
 
     # if no option is specified we default to "help" so we have something
     # useful to show to the user instead of an error because of missing
@@ -505,4 +514,7 @@ def main():
                 value = 'yes'
             config_overrides.append((var, value))
         config.set_overrides(config_overrides)
-    args.func(config, args)
+    command = args.cls()
+    command.config = config
+    command.args = args
+    command.execute()
