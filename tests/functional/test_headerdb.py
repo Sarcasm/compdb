@@ -12,8 +12,8 @@ import subprocess
 import unittest
 import sys
 
-from compdb.compdb import (compile_commands_to_json,
-                           CompileCommand, )
+from compdb.db.json import compile_commands_to_json
+from compdb.models import CompileCommand
 
 LOCAL_PATH = os.path.abspath(os.path.dirname(__file__))
 COMPDB_DIR = os.path.join(LOCAL_PATH, '..', '..', 'compdb')

@@ -3,7 +3,8 @@ from __future__ import print_function, unicode_literals, absolute_import
 import os
 import re
 
-import compdb.compdb
+import compdb.db.json
+from compdb.models import CompileCommand
 
 
 def sanitize_compile_options(compile_command):
@@ -52,7 +53,7 @@ def mimic_path_relativity(path, other, default_dir):
 
 
 def derive_compile_command(header_file, reference):
-    return compdb.compdb.CompileCommand(
+    return CompileCommand(
         directory=reference.directory,
         file=mimic_path_relativity(header_file, reference.file,
                                    reference.directory),
@@ -93,8 +94,9 @@ def extract_include_dirs(compile_command):
             else:
                 header_search_path.append(command[i][2:])
         i += 1
-    return [os.path.join(compile_command.directory, p)
-            for p in header_search_path]
+    return [
+        os.path.join(compile_command.directory, p) for p in header_search_path
+    ]
 
 
 def get_implicit_header_search_path(compile_command):
@@ -238,5 +240,5 @@ def make_headerdb(compile_commands_iter, fp):
         headerdb.update(db_update)
         db_update = make_headerdb1((cmd for _, cmd in db_update.values()),
                                    headerdb)
-    compdb.compdb.compile_commands_to_json(
+    compdb.db.json.compile_commands_to_json(
         (cmd for _, cmd in headerdb.values()), fp)

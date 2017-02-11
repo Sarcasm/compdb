@@ -4,4 +4,4 @@ flake8==3.2.0
 pep8-naming==0.4.1
 readme-renderer==0.7.0
 tox==2.5.0
-yapf==0.12.1
+yapf==0.16.0

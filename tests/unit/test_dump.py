@@ -7,7 +7,10 @@ try:
 except ImportError:
     from io import StringIO
 
-import compdb.compdb as compdb
+from compdb.db.json import (
+    command_to_json,
+    compile_commands_to_json, )
+from compdb.models import CompileCommand
 
 # command: The compile command executed. After JSON unescaping, this must be a
 # valid command to rerun the exact compilation step for the translation unit in
@@ -29,10 +32,10 @@ COMMAND_TO_JSON_DATA = [
     (['clang++', "-DBAR='c'"], '"clang++ \\"-DBAR=\'c\'\\""'),
 ]
 
-COMPILE_COMMANDS_TO_JSON_DATA = (
-    [compdb.CompileCommand("/tmp", "foo.cpp", ["clang++"]),
-     compdb.CompileCommand("/tmp/bar", "bar.cpp", ["clang++", "-std=c++11"])],
-    r"""[
+COMPILE_COMMANDS_TO_JSON_DATA = ([
+    CompileCommand("/tmp", "foo.cpp", ["clang++"]),
+    CompileCommand("/tmp/bar", "bar.cpp", ["clang++", "-std=c++11"])
+], r"""[
 {
   "directory": "/tmp",
   "command": "clang++",
@@ -51,12 +54,11 @@ COMPILE_COMMANDS_TO_JSON_DATA = (
 class ToJSON(unittest.TestCase):
     def test_command_to_json(self):
         for tpl in COMMAND_TO_JSON_DATA:
-            self.assertEqual(tpl[1], compdb.command_to_json(tpl[0]))
+            self.assertEqual(tpl[1], command_to_json(tpl[0]))
 
     def test_compile_commands_to_json(self):
         output = StringIO()
-        compdb.compile_commands_to_json(COMPILE_COMMANDS_TO_JSON_DATA[0],
-                                        output)
+        compile_commands_to_json(COMPILE_COMMANDS_TO_JSON_DATA[0], output)
         self.assertEqual(COMPILE_COMMANDS_TO_JSON_DATA[1], output.getvalue())
 
 

@@ -9,14 +9,15 @@ import os
 import sys
 import textwrap
 
-from compdb.__about__ import (__desc__,
-                              __prog__,
-                              __version__, )
+from compdb.__about__ import (
+    __desc__,
+    __prog__,
+    __version__, )
 
-import compdb.compdb
+from compdb.models import CompilationDatabase
+from compdb import (filelist, headerdb)
+import compdb.db.json
 import compdb.config
-import compdb.filelist
-import compdb.headerdb
 
 
 # The issue this function tries to solve is to have a text writer where unicode
@@ -201,14 +202,14 @@ class DumpCommand(CommandBase):
     def execute(self):
         cdbs = []
         for build_dir in self.args.p:
-            cdb = compdb.compdb.CompilationDatabase.from_directory(build_dir)
+            cdb = CompilationDatabase.from_directory(build_dir)
             if not cdb:
                 sys.stderr.write('error: compilation database not found\n')
                 sys.exit(1)
             cdbs.append(cdb)
-        compdb.compdb.compile_commands_to_json(
-            itertools.chain.from_iterable([cdb.get_all_compile_commands()
-                                           for cdb in cdbs]),
+        compdb.db.json.compile_commands_to_json(
+            itertools.chain.from_iterable(
+                [cdb.get_all_compile_commands() for cdb in cdbs]),
             get_utf8_writer())
 
 
@@ -226,7 +227,7 @@ class FindCommand(CommandBase):
 
     def execute(self):
         build_dir = self.args.p
-        cdb = compdb.compdb.CompilationDatabase.from_directory(build_dir)
+        cdb = CompilationDatabase.from_directory(build_dir)
         if not cdb:
             sys.stderr.write('error: compilation database not found\n')
             sys.exit(1)
@@ -234,8 +235,8 @@ class FindCommand(CommandBase):
             cdb.get_compile_commands(self.args.file))
         if is_empty:
             sys.exit(1)
-        compdb.compdb.compile_commands_to_json(compile_commands,
-                                               get_utf8_writer())
+        compdb.db.json.compile_commands_to_json(compile_commands,
+                                                get_utf8_writer())
 
 
 class HeaderDbCommand(CommandBase):
@@ -255,12 +256,12 @@ class HeaderDbCommand(CommandBase):
 
     def execute(self):
         build_dir = self.args.p
-        cdb = compdb.compdb.CompilationDatabase.from_directory(build_dir)
+        cdb = CompilationDatabase.from_directory(build_dir)
         if not cdb:
             sys.stderr.write('error: compilation database not found\n')
             sys.exit(1)
-        compdb.headerdb.make_headerdb(cdb.get_all_compile_commands(),
-                                      get_utf8_writer())
+        headerdb.make_headerdb(cdb.get_all_compile_commands(),
+                               get_utf8_writer())
 
 
 class ScanFilesCommand(CommandBase):
@@ -289,7 +290,7 @@ class ScanFilesCommand(CommandBase):
         groups = self.args.groups.split(',')
         # join is to have a path separator at the end
         prefix_to_skip = os.path.join(os.path.abspath('.'), '')
-        for path in compdb.filelist.list_files(groups, self.args.path):
+        for path in filelist.list_files(groups, self.args.path):
             # make descendant paths relative
             if path.startswith(prefix_to_skip):
                 path = path[len(prefix_to_skip):]
@@ -341,7 +342,7 @@ class CheckDbCommand(CommandBase):
 
         databases = []
         for build_dir in self.args.p:
-            cdb = compdb.compdb.CompilationDatabase.from_directory(build_dir)
+            cdb = CompilationDatabase.from_directory(build_dir)
             if not cdb:
                 sys.stderr.write('error: compilation database not found\n')
                 sys.exit(1)
@@ -349,10 +350,9 @@ class CheckDbCommand(CommandBase):
 
         groups = self.args.groups.split(',')
         db_files = frozenset(
-            itertools.chain.from_iterable([cdb.get_all_files()
-                                           for cdb in databases]))
-        list_files = frozenset(
-            compdb.filelist.list_files(groups, self.args.path))
+            itertools.chain.from_iterable(
+                [cdb.get_all_files() for cdb in databases]))
+        list_files = frozenset(filelist.list_files(groups, self.args.path))
 
         # this only is not a hard error, files may be in system paths or build
         # directory for example
@@ -429,9 +429,10 @@ def term_columns():
         except (KeyError, ValueError):
             try:
                 import fcntl, termios, struct  # noqa: E401
-                columns = struct.unpack('HHHH', fcntl.ioctl(
-                    sys.stdout.fileno(), termios.TIOCGWINSZ,
-                    struct.pack('HHHH', 0, 0, 0, 0)))[1]
+                columns = struct.unpack(
+                    'HHHH',
+                    fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ,
+                                struct.pack('HHHH', 0, 0, 0, 0)))[1]
             except (ImportError, IOError):
                 pass
     return columns
@@ -444,9 +445,9 @@ def wrap_paragraphs(text, max_width=None):
     if paragraph_width > 2:
         paragraph_width -= 2
     paragraphs = text.split('\n\n')
-    return "\n\n".join(map(lambda s:
-                           textwrap.fill(s.strip(), width=paragraph_width),
-                           paragraphs))
+    return "\n\n".join(
+        map(lambda s: textwrap.fill(s.strip(), width=paragraph_width),
+            paragraphs))
 
 
 def main():
