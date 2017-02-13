@@ -110,10 +110,9 @@ class SectionSchema(object):
         self.depends.append(other_section)
 
     def register_string(self, name, desc):
-        if sys.version_info[0] < 3:
-            self.schemas[name] = unicode  # noqa: F821
-        else:
-            self.schemas[name] = str
+        # type('') is a hack to get the unicode string type in a portable way
+        # both in Python 3 and 2, when unicode_literals for the latter
+        self.schemas[name] = type('')
 
     def register_int(self, name, desc):
         self.schemas[name] = int
