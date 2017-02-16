@@ -2,7 +2,6 @@ from __future__ import print_function, unicode_literals, absolute_import
 
 import os
 import pprint
-import sys
 
 
 class CompileCommand:
@@ -24,29 +23,19 @@ class CompileCommand:
 
 
 class CompilationDatabase(object):
-    """Mimic clang::tooling::CompilationDatabase interface"""
-
-    @staticmethod
-    def from_directory(directory):
-        """Automatically create a CompilationDatabase from build directory."""
-        # FIXME: temporary hack for backward compat
-        print(
-            'WARNING: CompilationDatabase.from_directory() temporarily hacked',
-            file=sys.stderr)
-        from compdb.db.json import JSONCompilationDatabase
-        return JSONCompilationDatabase.from_directory(directory)
+    """Mimic clang::tooling::CompilationDatabase interface."""
 
     def get_compile_commands(self, filepath):
-        """get the compile commands for the given file
+        """Get the compile commands for the given file.
 
-        return an iterable of CompileCommand
+        Return an iterable of CompileCommand.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_all_files(self):
-        """return an iterable of path strings"""
-        raise NotImplementedError()
+        """Return an iterable of path strings."""
+        raise NotImplementedError
 
     def get_all_compile_commands(self):
-        """return an iterable of CompileCommand"""
-        raise NotImplementedError()
+        """Return an iterable of CompileCommand."""
+        raise NotImplementedError

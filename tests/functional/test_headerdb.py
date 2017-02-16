@@ -28,7 +28,7 @@ TEST_OUT = os.path.join(LOCAL_PATH, 'test-output', 'headerdb')
 
 def headerdb(build_dir):
     return subprocess.Popen(
-        [sys.executable, COMPDB_DIR, 'headerdb', '-p', build_dir],
+        [sys.executable, COMPDB_DIR, '-p', build_dir, 'headerdb'],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE).communicate()
 

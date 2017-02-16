@@ -14,6 +14,7 @@ class JSONCompilationDatabase(CompilationDatabase):
 
     @classmethod
     def from_directory(cls, directory):
+        """Automatically create a CompilationDatabase from build directory."""
         json_db_path = os.path.join(directory, 'compile_commands.json')
         return cls(json_db_path) if os.path.exists(json_db_path) else None
 

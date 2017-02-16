@@ -73,16 +73,6 @@ def get_local_conf():
     return None
 
 
-def make_conf():
-    config_paths = [get_user_conf()]
-    local_conf = get_local_conf()
-    if local_conf:
-        config_paths.append(local_conf)
-    conf = configparser.ConfigParser()
-    conf.read(config_paths)
-    return conf
-
-
 class OptionInvalidError(ValueError):
     '''Raise when a key string of the form '<section>.<option>' is malformed'''
 
@@ -117,10 +107,16 @@ class SectionSchema(object):
     def register_int(self, name, desc):
         self.schemas[name] = int
 
+    def register_path(self, name, desc):
+        self.schemas[name] = 'path_magic'
+
 
 class ConfigSchema(object):
     def __init__(self):
         self._section_to_schemas = {}
+
+    def sections(self):
+        return self._section_to_schemas.keys()
 
     def get_section_schema(self, section):
         self._section_to_schemas[section] = SectionSchema()
@@ -128,25 +124,49 @@ class ConfigSchema(object):
 
 
 class LazyTypedSection():
-    def __init__(self, section, section_schema):
-        self._section = section
+    def __init__(self, section_schema, sections):
         self._section_schema = section_schema
+        self._sections = sections
 
-    def __getattr__(self, name):
-        if name not in self._section_schema.schemas:
+    def __getattr__(self, unsafe_option_name):
+        option = unsafe_option_name.replace('_', '-')
+        if option not in self._section_schema.schemas:
             # requesting an unspecified attribute is an error
-            raise AttributeError(name)
-        if name not in self._section:
-            return None
-        return self._section_schema.schemas[name](self._section[name])
+            raise AttributeError(option)
+        cls = self._section_schema.schemas[option]
+        for section, path in self._sections:
+            if option in section:
+                value = section[option]
+                if cls == 'path_magic':
+                    return os.path.normpath(
+                        os.path.join(os.path.dirname(path or ''), value))
+                return cls(value)
+        return None
 
 
 class LazyTypedConfig():
     def __init__(self, config_schema):
-        self._config = None
         self._config_schema = config_schema
+        self._filenames = []
+        self._configs = []
         self._sections = {}
         self._overrides = []
+
+    def options(self):
+        for section_name, section_schema in \
+                self._config_schema._section_to_schemas.items():
+            for key in section_schema.schemas.keys():
+                yield '{}.{}'.format(section_name, key)
+
+    def get_effective_configuration(self):
+        conf = configparser.ConfigParser()
+        self._get_configs()  # load self._filenames
+        for config_path in self._filenames:
+            if config_path:
+                conf.read(config_path)
+            else:
+                self._apply_overrides(conf)
+        return conf
 
     def set_overrides(self, overrides):
         for key, value in overrides:
@@ -159,33 +179,51 @@ class LazyTypedConfig():
             # check type of key, if the type is wrong an error will be
             # reported, even if the config override is not given by the command
             # there is no reason for the user to specify any wrong values
-            self._config_schema._section_to_schemas[section] \
-                               .schemas[opt](value)
+            cls = self._config_schema._section_to_schemas[section].schemas[opt]
+            if cls == 'path_magic':
+                cls = type('')
+            cls(value)
             self._overrides.append((section, opt, value))
-
-    def get_config(self):
-        if not self._config:
-            self._config = make_conf()
-            self._apply_overrides(self._config)
-        return self._config
 
     def _apply_overrides(self, config):
         for section, option, value in self._overrides:
-            if not config.has_section(section):
-                config.add_section(section)
             config.set(section, option, value)
 
-    def __getattr__(self, name):
-        human_name = name.replace('_', '-')
-        self.get_config()  # make sure self._config is loaded
-        if human_name not in self._sections:
-            if human_name not in self._config:
-                # use the empty-dict as a configuration,
-                # this will make the LazyTypedSection return a default value
-                self._sections[human_name] = LazyTypedSection(
-                    {}, self._config_schema._section_to_schemas[human_name])
+    def _make_configs(self):
+        user_conf = get_user_conf()
+        if os.path.isfile(user_conf):
+            self._filenames.append(user_conf)
+        local_conf = get_local_conf()
+        if local_conf:
+            self._filenames.append(local_conf)
+        if self._overrides:
+            # none is a special value for the overrides
+            self._filenames.append(None)
+        for config_path in self._filenames:
+            conf = configparser.ConfigParser()
+            # initialize all the sections,
+            # this avoid having to check for them later on
+            for section in self._config_schema.sections():
+                conf.add_section(section)
+            if config_path:
+                conf.read(config_path)
             else:
-                self._sections[human_name] = LazyTypedSection(
-                    self._config[human_name],
-                    self._config_schema._section_to_schemas[human_name])
-        return self._sections[human_name]
+                self._apply_overrides(conf)
+            self._configs.append(conf)
+
+    def _get_configs(self):
+        if not self._configs:
+            self._make_configs()
+        return self._configs
+
+    def _make_section(self, name):
+        schema = self._config_schema._section_to_schemas[name]
+        sections = [config[name] for config in self._get_configs()]
+        return LazyTypedSection(schema,
+                                reversed(list(zip(sections, self._filenames))))
+
+    def __getattr__(self, unsafe_section_name):
+        section = unsafe_section_name.replace('_', '-')
+        if section not in self._sections:
+            self._sections[section] = self._make_section(section)
+        return self._sections[section]

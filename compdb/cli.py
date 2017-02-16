@@ -14,9 +14,12 @@ from compdb.__about__ import (
     __prog__,
     __version__, )
 
-from compdb.models import CompilationDatabase
-from compdb import (filelist, headerdb)
+from compdb import (
+    filelist,
+    headerdb, )
+import compdb.db.aggregate
 import compdb.db.json
+import compdb.db.null
 import compdb.config
 
 
@@ -74,7 +77,38 @@ else:
 
 
 class CommandBase(RegisteredCommand):
-    pass
+    def __init__(self):
+        self.config = None
+        self.args = None
+
+    def set_config(self, config):
+        self.config = config
+
+    def set_args(self, args):
+        self.args = args
+
+    def get_build_directories(self):
+        return self.args.build_paths or [self.config.compdb.build_dir]
+
+    @property
+    def database(self):
+        if not hasattr(self, '__database'):
+            databases = []
+            for build_path in self.get_build_directories():
+                databases.append(
+                    compdb.db.json.JSONCompilationDatabase.from_directory(
+                        build_path))
+            if not databases:
+                # default to a null database
+                setattr(self, '__database',
+                        compdb.db.null.NullCompilationDatabase())
+            elif len(databases) == 1:
+                setattr(self, '__database', databases[0])
+            else:
+                setattr(self, '__database',
+                        compdb.db.aggregate.AggregateCompilationDatabase(
+                            databases))
+        return getattr(self, '__database')
 
 
 class HelpCommand(CommandBase):
@@ -172,45 +206,25 @@ class ConfigCommand(CommandBase):
         print(local_conf)
 
     def execute_list(self):
-        for section_name, section_schema in sorted(
-                self.config._config_schema._section_to_schemas.items()):
-            for key in section_schema.schemas:
-                print('{}.{}'.format(section_name, key))
-
-    def execute_dump(self):
-        self.config.get_config().write(sys.stdout)
+        for key in sorted(self.config.options()):
+            print(key)
 
     def execute_get(self):
         section, option = compdb.config.parse_key(self.args.key)
         section = getattr(self.config, section)
         print(getattr(section, option))
 
+    def execute_dump(self):
+        self.config.get_effective_configuration().write(sys.stdout)
+
 
 class DumpCommand(CommandBase):
     name = 'dump'
     help_short = 'dump the compilation database(s)'
 
-    @classmethod
-    def options(cls, parser):
-        parser.add_argument(
-            '-p',
-            metavar="BUILD-DIR",
-            help='build path(s)',
-            action='append',
-            required=True)
-
     def execute(self):
-        cdbs = []
-        for build_dir in self.args.p:
-            cdb = CompilationDatabase.from_directory(build_dir)
-            if not cdb:
-                sys.stderr.write('error: compilation database not found\n')
-                sys.exit(1)
-            cdbs.append(cdb)
         compdb.db.json.compile_commands_to_json(
-            itertools.chain.from_iterable(
-                [cdb.get_all_compile_commands() for cdb in cdbs]),
-            get_utf8_writer())
+            self.database.get_all_compile_commands(), get_utf8_writer())
 
 
 class FindCommand(CommandBase):
@@ -221,22 +235,31 @@ class FindCommand(CommandBase):
     @classmethod
     def options(cls, parser):
         parser.add_argument(
-            '-p', metavar="BUILD-DIR", help='build path', required=True)
+            '-1',
+            '--unique',
+            action='store_true',
+            help='restrict results to a single entry per specified files')
         parser.add_argument(
-            'file', help="file to search for in the compilation database")
+            'files',
+            metavar='FILE',
+            help="file to search for in the compilation database",
+            nargs='+')
 
     def execute(self):
-        build_dir = self.args.p
-        cdb = CompilationDatabase.from_directory(build_dir)
-        if not cdb:
-            sys.stderr.write('error: compilation database not found\n')
-            sys.exit(1)
-        is_empty, compile_commands = compdb.compdb.empty_iterator_wrap(
-            cdb.get_compile_commands(self.args.file))
-        if is_empty:
-            sys.exit(1)
-        compdb.db.json.compile_commands_to_json(compile_commands,
-                                                get_utf8_writer())
+        results = []
+        for file in self.args.files:
+            compile_commands = self.database.get_compile_commands(file)
+            try:
+                first = next(compile_commands)
+            except StopIteration:
+                print(
+                    'error: no compile commands for {}'.format(file),
+                    file=sys.stderr)
+                sys.exit(1)
+            results.append(first)
+            if not self.args.unique:
+                results.extend(compile_commands)
+        compdb.db.json.compile_commands_to_json(results, get_utf8_writer())
 
 
 class HeaderDbCommand(CommandBase):
@@ -249,18 +272,8 @@ class HeaderDbCommand(CommandBase):
     Exit with status 1 if no compilation database is found.
     """
 
-    @classmethod
-    def options(cls, parser):
-        parser.add_argument(
-            '-p', metavar="BUILD-DIR", help='build path', required=True)
-
     def execute(self):
-        build_dir = self.args.p
-        cdb = CompilationDatabase.from_directory(build_dir)
-        if not cdb:
-            sys.stderr.write('error: compilation database not found\n')
-            sys.exit(1)
-        headerdb.make_headerdb(cdb.get_all_compile_commands(),
+        headerdb.make_headerdb(self.database.get_all_compile_commands(),
                                get_utf8_writer())
 
 
@@ -313,12 +326,6 @@ class CheckDbCommand(CommandBase):
     @classmethod
     def options(cls, parser):
         parser.add_argument(
-            '-p',
-            metavar="BUILD-DIR",
-            help='build path(s)',
-            action='append',
-            required=True)
-        parser.add_argument(
             'path',
             nargs='*',
             default=["."],
@@ -340,18 +347,9 @@ class CheckDbCommand(CommandBase):
             suppressions.extend(
                 self._get_suppressions_patterns_from_file(supp))
 
-        databases = []
-        for build_dir in self.args.p:
-            cdb = CompilationDatabase.from_directory(build_dir)
-            if not cdb:
-                sys.stderr.write('error: compilation database not found\n')
-                sys.exit(1)
-            databases.append(cdb)
-
         groups = self.args.groups.split(',')
         db_files = frozenset(
-            itertools.chain.from_iterable(
-                [cdb.get_all_files() for cdb in databases]))
+            itertools.chain.from_iterable(self.database.get_all_files()))
         list_files = frozenset(filelist.list_files(groups, self.args.path))
 
         # this only is not a hard error, files may be in system paths or build
@@ -462,6 +460,13 @@ def main():
         action='append',
         default=[],
         help='set value of configuration variable NAME for this invocation')
+    parser.add_argument(
+        '-p',
+        dest='build_paths',
+        metavar="BUILD-DIR",
+        action='append',
+        default=[],
+        help='build path(s)')
 
     # http://stackoverflow.com/a/18283730/951426
     # http://bugs.python.org/issue9253#msg186387
@@ -473,6 +478,8 @@ def main():
     subparsers.required = True
 
     config_schema = compdb.config.ConfigSchema()
+    compdb_schema = config_schema.get_section_schema('compdb')
+    compdb_schema.register_path('build-dir', 'the build directories')
     for command_cls in RegisteredCommand:
         command_description = command_cls.help_short.capitalize()
         if not command_description.endswith('.'):
@@ -506,6 +513,7 @@ def main():
     # subcommand
     args = parser.parse_args(sys.argv[1:] or ["help"])
     config = compdb.config.LazyTypedConfig(config_schema)
+
     if args.config_overrides:
         # config_overrides is a list of tuples: (var, value)
         config_overrides = []
@@ -515,7 +523,9 @@ def main():
                 value = 'yes'
             config_overrides.append((var, value))
         config.set_overrides(config_overrides)
+
     command = args.cls()
-    command.config = config
-    command.args = args
+    command.set_config(config)
+    command.set_args(args)
+
     command.execute()
