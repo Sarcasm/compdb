@@ -4,7 +4,6 @@ import argparse
 import codecs
 import fnmatch
 import io
-import itertools
 import os
 import sys
 import textwrap
@@ -358,8 +357,7 @@ class CheckDbCommand(CommandBase):
                 self._get_suppressions_patterns_from_file(supp))
 
         groups = self.args.groups.split(',')
-        db_files = frozenset(
-            itertools.chain.from_iterable(self.database.get_all_files()))
+        db_files = frozenset(self.database.get_all_files())
         list_files = frozenset(filelist.list_files(groups, self.args.path))
 
         # this only is not a hard error, files may be in system paths or build
@@ -383,7 +381,8 @@ class CheckDbCommand(CommandBase):
         # print difference an exit with error
         self._print_set_summary(list_only, "project(s)")
         print(
-            "error: some files are missing from the compilation database(s)",
+            "error: {} file(s) are missing from the compilation database(s)".
+            format(len(list_only)),
             file=sys.stderr)
         sys.exit(1)
 
