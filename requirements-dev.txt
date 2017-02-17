@@ -1,3 +1,6 @@
+# NOTE: When updating this file, regenerate the tox environment with:
+#           tox --recreate <args...>
+
 -r requirements.txt
 
 flake8==3.2.0
