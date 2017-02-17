@@ -88,16 +88,26 @@ class CommandBase(RegisteredCommand):
         self.args = args
 
     def get_build_directories(self):
-        return self.args.build_paths or [self.config.compdb.build_dir]
+        if self.args.build_paths:
+            return self.args.build_paths
+        if self.config.compdb.build_dir:
+            return [self.config.compdb.build_dir]
+        return []
 
     @property
     def database(self):
         if not hasattr(self, '__database'):
             databases = []
             for build_path in self.get_build_directories():
-                databases.append(
-                    compdb.db.json.JSONCompilationDatabase.from_directory(
-                        build_path))
+                jsondb = compdb.db.json.JSONCompilationDatabase.from_directory(
+                    build_path)
+                if not jsondb:
+                    print(
+                        "error: invalid JSON Compilation database:",
+                        build_path,
+                        file=sys.stderr)
+                    sys.exit(1)
+                databases.append(jsondb)
             if not databases:
                 # default to a null database
                 setattr(self, '__database',
