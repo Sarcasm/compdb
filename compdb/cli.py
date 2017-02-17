@@ -8,6 +8,11 @@ import os
 import sys
 import textwrap
 
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
+
 from compdb.__about__ import (
     __desc__,
     __prog__,
@@ -27,6 +32,8 @@ import compdb.config
 # conditions:
 # - python 2 & 3, output to terminal
 # - python 2 & 3, output to a pipe or shell redirection
+# - python 2 & 3, output to a StringIO (this one does not actually use UTF-8
+#   encoding)
 #
 # When using python 2, if the program output is redirected to a pipe or file,
 # the output encoding may be set to 'ascii',
@@ -34,17 +41,18 @@ import compdb.config
 # Redirections do not seem to cause such issue with python 3
 # but explicit utf-8 encoding seems a sensible choice to output data to be
 # consumed by other programs (e.g: JSON).
-#
-# XXX: maybe using a io.TextIOBase would be more appropriate?
-def get_utf8_writer():
+def stdout_unicode_writer():
     """Get unicode writer to output UTF-8 encoded data.
 
     To be used for JSON dump and alike.
 
     """
-    if sys.version_info[0] < 3:
-        return codecs.getwriter('utf-8')(sys.stdout)
-    return codecs.getwriter('utf-8')(sys.stdout.buffer)
+    stream = sys.stdout
+    if isinstance(stream, StringIO):
+        return stream
+    if hasattr(stream, 'buffer'):
+        stream = stream.buffer
+    return codecs.getwriter('utf-8')(stream)
 
 
 # http://python-3-patterns-idioms-test.readthedocs.org/en/latest/Metaprogramming.html#example-self-registration-of-subclasses
@@ -233,7 +241,7 @@ class DumpCommand(CommandBase):
 
     def execute(self):
         compdb.db.json.compile_commands_to_json(
-            self.database.get_all_compile_commands(), get_utf8_writer())
+            self.database.get_all_compile_commands(), stdout_unicode_writer())
 
 
 class FindCommand(CommandBase):
@@ -268,7 +276,8 @@ class FindCommand(CommandBase):
             results.append(first)
             if not self.args.unique:
                 results.extend(compile_commands)
-        compdb.db.json.compile_commands_to_json(results, get_utf8_writer())
+        compdb.db.json.compile_commands_to_json(results,
+                                                stdout_unicode_writer())
 
 
 class HeaderDbCommand(CommandBase):
@@ -283,7 +292,7 @@ class HeaderDbCommand(CommandBase):
 
     def execute(self):
         headerdb.make_headerdb(self.database.get_all_compile_commands(),
-                               get_utf8_writer())
+                               stdout_unicode_writer())
 
 
 class ScanFilesCommand(CommandBase):
@@ -430,7 +439,15 @@ class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
 def term_columns():
     columns = 80
 
-    if os.isatty(sys.stdout.fileno()):
+    try:
+        # can happens in tests, when we redirect sys.stdout to a StringIO
+        stdout_fileno = sys.stdout.fileno()
+    except (AttributeError, io.UnsupportedOperation):
+        # fileno() is an AttributeError on Python 2 for StringIO.StringIO
+        # and io.UnsupportedOperation in Python 3 for io.StringIO
+        stdout_fileno = None
+
+    if stdout_fileno is not None and os.isatty(stdout_fileno):
         try:
             columns = int(os.environ["COLUMNS"])
         except (KeyError, ValueError):
@@ -457,7 +474,7 @@ def wrap_paragraphs(text, max_width=None):
             paragraphs))
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description='{}.'.format(__desc__),
         formatter_class=SubcommandHelpFormatter)
@@ -520,7 +537,7 @@ def main():
     # if no option is specified we default to "help" so we have something
     # useful to show to the user instead of an error because of missing
     # subcommand
-    args = parser.parse_args(sys.argv[1:] or ["help"])
+    args = parser.parse_args(argv or sys.argv[1:] or ["help"])
     config = compdb.config.LazyTypedConfig(config_schema)
 
     if args.config_overrides:

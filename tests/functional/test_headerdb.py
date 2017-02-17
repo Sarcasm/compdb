@@ -3,20 +3,25 @@
 
 from __future__ import print_function, unicode_literals, absolute_import
 
+import contextlib
 import errno
 import io
 import json
 import operator
 import os
-import subprocess
-import unittest
 import sys
+import unittest
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 from compdb.db.json import compile_commands_to_json
+from compdb.cli import main
 from compdb.models import CompileCommand
 
 LOCAL_PATH = os.path.abspath(os.path.dirname(__file__))
-COMPDB_DIR = os.path.join(LOCAL_PATH, '..', '..', 'compdb')
 
 #
 # Helpers
@@ -26,11 +31,14 @@ TEST_DIR = os.path.join(LOCAL_PATH, 'headerdb')
 TEST_OUT = os.path.join(LOCAL_PATH, 'test-output', 'headerdb')
 
 
-def headerdb(build_dir):
-    return subprocess.Popen(
-        [sys.executable, COMPDB_DIR, '-p', build_dir, 'headerdb'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE).communicate()
+@contextlib.contextmanager
+def captured_output():
+    old_out, old_err = sys.stdout, sys.stderr
+    try:
+        sys.stdout, sys.stderr = StringIO(), StringIO()
+        yield sys.stdout, sys.stderr
+    finally:
+        sys.stdout, sys.stderr = old_out, old_err
 
 
 def mkdir_p(path):
@@ -60,10 +68,13 @@ def run_headerdb(test_dirname, compile_commands):
     build_dir = os.path.join(TEST_OUT, test_dirname)
     mkdir_p(build_dir)
     create_database(compile_commands, build_dir)
-    outs, errs = headerdb(build_dir)
+    with captured_output() as (stdout, stderr):
+        main(['-p', build_dir, 'headerdb'])
+    outs = stdout.getvalue()
+    errs = stderr.getvalue()
     if errs:
-        print(errs.decode("utf-8"))
-    compdb_out = json.loads(outs.decode("utf-8"))
+        print(errs)
+    compdb_out = json.loads(outs)
     compdb_out.sort(key=operator.itemgetter("file", "directory", "command"))
     return compdb_out
 
