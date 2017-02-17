@@ -61,9 +61,11 @@ def run_headerdb(test_dirname, compile_commands):
     mkdir_p(build_dir)
     create_database(compile_commands, build_dir)
     outs, errs = headerdb(build_dir)
+    if errs:
+        print(errs.decode("utf-8"))
     compdb_out = json.loads(outs.decode("utf-8"))
     compdb_out.sort(key=operator.itemgetter("file", "directory", "command"))
-    return compdb_out, errs.decode("utf-8")
+    return compdb_out
 
 
 class HeaderDB(unittest.TestCase):
@@ -79,7 +81,7 @@ class HeaderDB(unittest.TestCase):
                 command=['clang++', '-DB=1'],
                 file='b.cpp'),
         ]
-        compdb_out, _ = run_headerdb(test_dirname, compdb_in)
+        compdb_out = run_headerdb(test_dirname, compdb_in)
         self.assertEqual(1, len(compdb_out))
         self.assertEqual('a.hpp', compdb_out[0]['file'])
         self.assertEqual('clang++ -DA=1', compdb_out[0]['command'])
@@ -96,7 +98,7 @@ class HeaderDB(unittest.TestCase):
                 command=['clang++', '-Iinclude', '-DB=1'],
                 file='src/b.cpp'),
         ]
-        compdb_out, _ = run_headerdb(test_dirname, compdb_in)
+        compdb_out = run_headerdb(test_dirname, compdb_in)
         self.assertEqual(2, len(compdb_out))
         self.assertEqual('include/a/a.hpp', compdb_out[0]['file'])
         self.assertEqual('clang++ -Iinclude -DA=1', compdb_out[0]['command'])
@@ -119,7 +121,7 @@ class HeaderDB(unittest.TestCase):
                 command=['clang++', '-DB=1'],
                 file='b.cpp'),
         ]
-        compdb_out, _ = run_headerdb(test_dirname, compdb_in)
+        compdb_out = run_headerdb(test_dirname, compdb_in)
         self.assertEqual(4, len(compdb_out))
         self.assertEqual('a.hpp', compdb_out[0]['file'])
         self.assertEqual('clang++ -DA=1', compdb_out[0]['command'])
@@ -142,7 +144,7 @@ class HeaderDB(unittest.TestCase):
                 command=['clang++', '-DB=1'],
                 file='b.cpp'),
         ]
-        compdb_out, _ = run_headerdb(test_dirname, compdb_in)
+        compdb_out = run_headerdb(test_dirname, compdb_in)
         self.assertEqual(4, len(compdb_out))
         self.assertEqual('a.hpp', compdb_out[0]['file'])
         self.assertEqual('clang++ -DA=1', compdb_out[0]['command'])
@@ -165,7 +167,7 @@ class HeaderDB(unittest.TestCase):
                 command=['clang++', '-DUTF=8'],
                 file='utf-8-á.cpp'),
         ]
-        compdb_out, _ = run_headerdb(test_dirname, compdb_in)
+        compdb_out = run_headerdb(test_dirname, compdb_in)
         self.assertEqual(2, len(compdb_out))
         self.assertEqual('latin-1-á.hpp', compdb_out[0]['file'])
         self.assertEqual('clang++ -DLATIN=1', compdb_out[0]['command'])
@@ -180,7 +182,7 @@ class HeaderDB(unittest.TestCase):
                 command=['clang++', '-Iinclude', '-Iinclude/a'],
                 file='a.cpp'),
         ]
-        compdb_out, _ = run_headerdb(test_dirname, compdb_in)
+        compdb_out = run_headerdb(test_dirname, compdb_in)
         self.assertEqual(1, len(compdb_out))
         self.assertEqual('include/a/a', compdb_out[0]['file'])
         self.assertEqual('clang++ -Iinclude -Iinclude/a',
@@ -198,7 +200,7 @@ class HeaderDB(unittest.TestCase):
                 command=['clang++', '-DB=1', '-I.'],
                 file='b.cpp'),
         ]
-        compdb_out, _ = run_headerdb(test_dirname, compdb_in)
+        compdb_out = run_headerdb(test_dirname, compdb_in)
         self.assertEqual(2, len(compdb_out))
         self.assertEqual('a.hpp', compdb_out[0]['file'])
         self.assertEqual('clang++ -DB=1 -I.', compdb_out[0]['command'])
