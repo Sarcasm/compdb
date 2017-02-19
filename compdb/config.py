@@ -83,32 +83,61 @@ class OptionInvalidError(ValueError):
 
 
 def parse_key(key):
-    section, sep, var = key.partition('.')
-    if section and sep and var:
+    unsafe_section, sep, unsafe_var = key.partition('.')
+    if unsafe_section and sep and unsafe_var:
+        section = unsafe_section.replace('_', '-')
+        var = unsafe_var.replace('_', '-')
         return section, var
     else:
         raise OptionInvalidError(
             'invalid key, should be of the form <section>.<variable>', key)
 
 
+def parse_option_string(value, *_):
+    return value
+
+
+def parse_option_int(value, *_):
+    return int(value)
+
+
+def parse_option_path(value, working_directory):
+    return os.path.normpath(os.path.join(working_directory, value))
+
+
+def parse_option_list_string(value, *_):
+    return value.split()
+
+
+def parse_option_list_path(value, working_directory):
+    return [
+        parse_option_path(path, working_directory) for path in value.split()
+    ]
+
+
 class SectionSchema(object):
     def __init__(self):
         self.schemas = {}
-        self.depends = []
 
-    def add_dependency(self, other_section):
-        self.depends.append(other_section)
+    def _register(self, unsafe_section_name, parser, desc):
+        section = unsafe_section_name.replace('_', '-')
+        del desc  # ignored for now
+        self.schemas[section] = parser
 
     def register_string(self, name, desc):
-        # type('') is a hack to get the unicode string type in a portable way
-        # both in Python 3 and 2, when unicode_literals for the latter
-        self.schemas[name] = type('')
+        self._register(name, parse_option_string, desc)
+
+    def register_string_list(self, name, desc):
+        self._register(name, parse_option_list_string, desc)
 
     def register_int(self, name, desc):
-        self.schemas[name] = int
+        self._register(name, parse_option_int, desc)
 
     def register_path(self, name, desc):
-        self.schemas[name] = 'path_magic'
+        self._register(name, parse_option_path, desc)
+
+    def register_path_list(self, name, desc):
+        self._register(name, parse_option_list_path, desc)
 
 
 class ConfigSchema(object):
@@ -133,14 +162,11 @@ class LazyTypedSection():
         if option not in self._section_schema.schemas:
             # requesting an unspecified attribute is an error
             raise AttributeError(option)
-        cls = self._section_schema.schemas[option]
-        for section, path in self._sections:
+        option_parser = self._section_schema.schemas[option]
+        for section, working_directory in self._sections:
             if option in section:
-                value = section[option]
-                if cls == 'path_magic':
-                    return os.path.normpath(
-                        os.path.join(os.path.dirname(path or ''), value))
-                return cls(value)
+                print(option, section[option])
+                return option_parser(section[option], working_directory)
         return None
 
 
@@ -176,13 +202,14 @@ class LazyTypedConfig():
                self._config_schema._section_to_schemas[section].schemas:
                 # overriding an unspecified attribute is an error
                 raise AttributeError(key)
-            # check type of key, if the type is wrong an error will be
-            # reported, even if the config override is not given by the command
-            # there is no reason for the user to specify any wrong values
-            cls = self._config_schema._section_to_schemas[section].schemas[opt]
-            if cls == 'path_magic':
-                cls = type('')
-            cls(value)
+            # check type of key, if the type is wrong an error is reported
+            # we could wait for the value to be used for the check,
+            # but since setting an override is an explicit operation,
+            # it's best to warn as early as possible
+            option_parser = self._config_schema._section_to_schemas[
+                section].schemas[opt]
+            overrides_working_directory = '.'
+            option_parser(value, overrides_working_directory)
             self._overrides.append((section, opt, value))
 
     def _apply_overrides(self, config):
@@ -219,8 +246,14 @@ class LazyTypedConfig():
     def _make_section(self, name):
         schema = self._config_schema._section_to_schemas[name]
         sections = [config[name] for config in self._get_configs()]
-        return LazyTypedSection(schema,
-                                reversed(list(zip(sections, self._filenames))))
+        overrides_working_directory = '.'
+        directories = [
+            os.path.dirname(filename)
+            if filename else overrides_working_directory
+            for filename in self._filenames
+        ]
+        return LazyTypedSection(
+            schema, list(reversed(list(zip(sections, directories)))))
 
     def __getattr__(self, unsafe_section_name):
         section = unsafe_section_name.replace('_', '-')

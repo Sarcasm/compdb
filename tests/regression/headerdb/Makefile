@@ -112,16 +112,16 @@ $(BUILD_DIR) $(DOWNLOAD_DIR) $(SOURCE_DIR) $(STAMP_DIR):
 	@mkdir -p $@
 
 $(STAMP_DIR)/%.verify: $(STAMP_DIR)/%.headerdb
-	$(COMPDB) check-db -g header \
+	$(COMPDB) -p $(call headerdb_path,$*) check-db \
+		-g header \
 		$(foreach SUPP,$($*_SUPPRESSIONS),\
 			--suppressions $(call abbreviate_path,$(SUPP))) \
-		-p $(call headerdb_path,$*) \
 		$(call source_path,$*)
 	@touch $@
 
 $(STAMP_DIR)/%.headerdb: $(STAMP_DIR)/%.configure
 	@mkdir -p $(call headerdb_path,$*)
-	$(COMPDB) headerdb -p $(call build_path,$*) > $(call headerdb_path,$*)/compile_commands.json
+	$(COMPDB) -p $(call build_path,$*) headerdb > $(call headerdb_path,$*)/compile_commands.json
 	@touch $@
 
 $(STAMP_DIR)/%.configure: $(STAMP_DIR)/%.source

@@ -2,7 +2,6 @@ from __future__ import print_function, unicode_literals, absolute_import
 
 import argparse
 import codecs
-import fnmatch
 import io
 import os
 import sys
@@ -295,6 +294,32 @@ class HeaderDbCommand(CommandBase):
                                stdout_unicode_writer())
 
 
+def _get_suppressions_patterns_from_file(path):
+    patterns = []
+    with io.open(path, 'r', encoding='utf-8') as f:
+        for line in f:
+            pattern = line.partition('#')[0].rstrip()
+            if pattern:
+                patterns.append(pattern)
+    return patterns
+
+
+def _make_file_scanner(config, args):
+    scanner = filelist.FileScanner()
+    scanner.add_suppressions(args.suppress)
+    scanner.add_suppressions(config.scan_files.suppress or [])
+    for supp_file in args.suppressions_file:
+        scanner.add_suppressions(
+            _get_suppressions_patterns_from_file(supp_file))
+    for supp_file in (config.scan_files.suppressions_files or []):
+        scanner.add_suppressions(
+            _get_suppressions_patterns_from_file(supp_file))
+    groups = args.groups.split(',')
+    for group in groups:
+        scanner.enable_group(group)
+    return scanner
+
+
 class ScanFilesCommand(CommandBase):
     name = 'scan-files'
     help_short = 'scan directory for source files'
@@ -305,23 +330,42 @@ class ScanFilesCommand(CommandBase):
     """
 
     @classmethod
+    def config_schema(cls, schema):
+        schema.register_path_list('suppressions-files',
+                                  'files containing suppress patterns')
+        schema.register_string_list('suppress',
+                                    'ignore files matching these patterns')
+
+    @classmethod
     def options(cls, parser):
         parser.add_argument(
-            'path',
-            nargs='*',
-            default=["."],
-            help="search path(s) (default: %(default)s)")
+            '--suppress',
+            metavar='pattern',
+            action='append',
+            default=[],
+            help='ignore files matching the given pattern')
+        parser.add_argument(
+            '--suppressions-file',
+            metavar='file',
+            action='append',
+            default=[],
+            help='add suppress patterns from file')
         parser.add_argument(
             '-g',
             '--groups',
             help="restrict search to files of the groups [source,header]",
             default="source,header")
+        parser.add_argument(
+            'path',
+            nargs='*',
+            default=["."],
+            help="search path(s) (default: %(default)s)")
 
     def execute(self):
-        groups = self.args.groups.split(',')
+        scanner = _make_file_scanner(self.config, self.args)
         # join is to have a path separator at the end
         prefix_to_skip = os.path.join(os.path.abspath('.'), '')
-        for path in filelist.list_files(groups, self.args.path):
+        for path in scanner.scan_many(self.args.path):
             # make descendant paths relative
             if path.startswith(prefix_to_skip):
                 path = path[len(prefix_to_skip):]
@@ -343,31 +387,12 @@ class CheckDbCommand(CommandBase):
 
     @classmethod
     def options(cls, parser):
-        parser.add_argument(
-            'path',
-            nargs='*',
-            default=["."],
-            help="search path(s) (default: %(default)s)")
-        parser.add_argument(
-            '-g',
-            '--groups',
-            help="restrict search to files of the groups [source,header]",
-            default="source,header")
-        parser.add_argument(
-            '--suppressions',
-            action='append',
-            default=[],
-            help='add suppression file')
+        ScanFilesCommand.options(parser)
 
     def execute(self):
-        suppressions = []
-        for supp in self.args.suppressions:
-            suppressions.extend(
-                self._get_suppressions_patterns_from_file(supp))
-
-        groups = self.args.groups.split(',')
+        scanner = _make_file_scanner(self.config, self.args)
         db_files = frozenset(self.database.get_all_files())
-        list_files = frozenset(filelist.list_files(groups, self.args.path))
+        list_files = frozenset(scanner.scan_many(self.args.path))
 
         # this only is not a hard error, files may be in system paths or build
         # directory for example
@@ -376,13 +401,6 @@ class CheckDbCommand(CommandBase):
             self._print_set_summary(db_only, "compilation database(s)")
 
         list_only = list_files - db_files
-        # filter out suppressions
-        # could convert the fnmatch expression to regex and use re.search()
-        # instead of prefixing */ pattern
-        suppressions = ['*/{}'.format(supp) for supp in suppressions]
-        for supp in suppressions:
-            filterred = set(fnmatch.filter(list_only, supp))
-            list_only -= filterred
 
         if not list_only:
             sys.exit(0)
@@ -394,16 +412,6 @@ class CheckDbCommand(CommandBase):
             format(len(list_only)),
             file=sys.stderr)
         sys.exit(1)
-
-    @staticmethod
-    def _get_suppressions_patterns_from_file(path):
-        patterns = []
-        with io.open(path, 'r', encoding='utf-8') as f:
-            for line in f:
-                pattern = line.partition('#')[0].rstrip()
-                if pattern:
-                    patterns.append(pattern)
-        return patterns
 
     @staticmethod
     def _print_set_summary(files, name):
