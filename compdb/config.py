@@ -165,7 +165,6 @@ class LazyTypedSection():
         option_parser = self._section_schema.schemas[option]
         for section, working_directory in self._sections:
             if option in section:
-                print(option, section[option])
                 return option_parser(section[option], working_directory)
         return None
 
