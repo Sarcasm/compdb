@@ -4,6 +4,8 @@ import configparser
 import os
 import sys
 
+import compdb.utils
+
 
 def _xdg_config_home():
     """Return a path under XDG_CONFIG_HOME directory (defaults to '~/.config').
@@ -55,7 +57,7 @@ def get_user_conf():
     return os.path.join(config_dir, 'compdb', 'config')
 
 
-def locate_dominating_file(name, start_dir='.'):
+def locate_dominating_file(name, start_dir=os.curdir):
     curdir = os.path.abspath(start_dir)
     olddir = None
     while not curdir == olddir:
@@ -101,8 +103,17 @@ def parse_option_int(value, *_):
     return int(value)
 
 
+def parse_option_bool(value, *_):
+    if value.lower() in ("yes", "true", "on", "1"):
+        return True
+    if value.lower() in ("no", "false", "off", "0"):
+        return False
+    raise ValueError('Invalid boolean value: {}'.format(value))
+
+
 def parse_option_path(value, working_directory):
-    return os.path.normpath(os.path.join(working_directory, value))
+    return compdb.utils.get_friendly_path(
+        os.path.join(working_directory, value))
 
 
 def parse_option_list_string(value, *_):
@@ -126,6 +137,9 @@ class SectionSchema(object):
 
     def register_string(self, name, desc):
         self._register(name, parse_option_string, desc)
+
+    def register_bool(self, name, desc):
+        self._register(name, parse_option_bool, desc)
 
     def register_string_list(self, name, desc):
         self._register(name, parse_option_list_string, desc)

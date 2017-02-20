@@ -1,6 +1,7 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
 import itertools
+import os
 
 
 # Check if a generator has at least one element.
@@ -15,3 +16,13 @@ def empty_iterator_wrap(iterator):
     except StopIteration:
         return True, None
     return False, itertools.chain([first], iterator)
+
+
+def get_friendly_path(path):
+    full_path = os.path.normpath(path)
+    rel_path = os.path.relpath(full_path)
+    if rel_path.startswith(os.path.join(os.pardir, os.pardir)):
+        friendly_path = full_path
+    else:
+        friendly_path = rel_path
+    return friendly_path

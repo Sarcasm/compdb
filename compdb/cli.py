@@ -25,6 +25,8 @@ import compdb.db.json
 import compdb.db.null
 import compdb.config
 
+HEADERDB_FILENAME = 'headerdb.json'
+
 
 # The issue this function tries to solve is to have a text writer where unicode
 # data can be written without decoding error. It should work in the following
@@ -100,20 +102,36 @@ class CommandBase(RegisteredCommand):
             return [self.config.compdb.build_dir]
         return []
 
+    def get_json_databases(self):
+        databases = []
+        for build_path in self.get_build_directories():
+            jsondb = compdb.db.json.JSONCompilationDatabase.from_directory(
+                build_path)
+            if not jsondb:
+                print(
+                    "error: invalid JSON Compilation database:",
+                    build_path,
+                    file=sys.stderr)
+                sys.exit(1)
+            databases.append(jsondb)
+        return databases
+
+    def _compose_jsondb(self, jsondb):
+        headerdb = compdb.db.json.JSONCompilationDatabase(
+            os.path.join(jsondb.directory, HEADERDB_FILENAME))
+        return compdb.db.aggregate.AggregateCompilationDatabase(
+            [jsondb, headerdb])
+
     @property
     def database(self):
         if not hasattr(self, '__database'):
             databases = []
-            for build_path in self.get_build_directories():
-                jsondb = compdb.db.json.JSONCompilationDatabase.from_directory(
-                    build_path)
-                if not jsondb:
-                    print(
-                        "error: invalid JSON Compilation database:",
-                        build_path,
-                        file=sys.stderr)
-                    sys.exit(1)
-                databases.append(jsondb)
+            for jsondb in self.get_json_databases():
+                if self.config.compdb.headerdb:
+                    db = self._compose_jsondb(jsondb)
+                else:
+                    db = jsondb
+                databases.append(db)
             if not databases:
                 # default to a null database
                 setattr(self, '__database',
@@ -277,6 +295,25 @@ class FindCommand(CommandBase):
                 results.extend(compile_commands)
         compdb.db.json.compile_commands_to_json(results,
                                                 stdout_unicode_writer())
+
+
+class UpdateCommand(CommandBase):
+    name = 'update'
+    help_short = 'update compilation databases to contain all workspace files'
+
+    def execute(self):
+        if not self.config.compdb.headerdb:
+            print(
+                'error: nothing to update: '
+                'compdb.headerdb is not enabled in config',
+                file=sys.stderr)
+            sys.exit(1)
+        for jsondb in self.get_json_databases():
+            output_path = os.path.join(jsondb.directory, HEADERDB_FILENAME)
+            with io.open(output_path, 'w', encoding='utf8') as f:
+                print("Writing {}...".format(output_path), end="", flush=True)
+                headerdb.make_headerdb(jsondb.get_all_compile_commands(), f)
+                print("done")
 
 
 class HeaderDbCommand(CommandBase):
@@ -514,6 +551,8 @@ def main(argv=None):
     config_schema = compdb.config.ConfigSchema()
     compdb_schema = config_schema.get_section_schema('compdb')
     compdb_schema.register_path('build-dir', 'the build directories')
+    compdb_schema.register_bool('headerdb',
+                                'whether or not headerdb should be used')
     for command_cls in RegisteredCommand:
         command_description = command_cls.help_short.capitalize()
         if not command_description.endswith('.'):
