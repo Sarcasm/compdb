@@ -1,7 +1,15 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
+import codecs
+import contextlib
 import itertools
 import os
+import sys
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 # Check if a generator has at least one element.
@@ -16,6 +24,48 @@ def empty_iterator_wrap(iterator):
     except StopIteration:
         return True, None
     return False, itertools.chain([first], iterator)
+
+
+# compatibility function,
+# not as smart as the version of the Python standard library
+@contextlib.contextmanager
+def suppress(*exceptions):
+    """Context manager to suppress specified exceptions
+         with suppress(OSError):
+             os.remove(somefile)
+    """
+    try:
+        yield
+    except exceptions:
+        pass
+
+
+# The issue this function tries to solve is to have a text writer where unicode
+# data can be written without decoding error. It should work in the following
+# conditions:
+# - python 2 & 3, output to terminal
+# - python 2 & 3, output to a pipe or shell redirection
+# - python 2 & 3, output to a StringIO (this one does not actually use UTF-8
+#   encoding)
+#
+# When using python 2, if the program output is redirected to a pipe or file,
+# the output encoding may be set to 'ascii',
+# potentially producing UnicodeEncodeError.
+# Redirections do not seem to cause such issue with python 3
+# but explicit utf-8 encoding seems a sensible choice to output data to be
+# consumed by other programs (e.g: JSON).
+def stdout_unicode_writer():
+    """Get unicode writer to output UTF-8 encoded data.
+
+    To be used for JSON dump and alike.
+
+    """
+    stream = sys.stdout
+    if isinstance(stream, StringIO):
+        return stream
+    if hasattr(stream, 'buffer'):
+        stream = stream.buffer
+    return codecs.getwriter('utf-8')(stream)
 
 
 def get_friendly_path(path):

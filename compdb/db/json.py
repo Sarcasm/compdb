@@ -5,18 +5,20 @@ import os
 import re
 import shlex
 
-from compdb.models import (CompileCommand, CompilationDatabase)
+from compdb.models import (CompileCommand, CompilationDatabaseInterface)
 
 
-class JSONCompilationDatabase(CompilationDatabase):
+class JSONCompilationDatabase(CompilationDatabaseInterface):
     def __init__(self, json_db_path):
         self.json_db_path = json_db_path
 
     @classmethod
-    def from_directory(cls, directory):
+    def probe_directory(cls, directory):
         """Automatically create a CompilationDatabase from build directory."""
-        json_db_path = os.path.join(directory, 'compile_commands.json')
-        return cls(json_db_path) if os.path.exists(json_db_path) else None
+        db_path = os.path.join(directory, 'compile_commands.json')
+        if os.path.exists(db_path):
+            return cls(db_path)
+        return super(JSONCompilationDatabase, cls).probe_directory(directory)
 
     @property
     def directory(self):

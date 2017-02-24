@@ -1,60 +1,17 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
 import argparse
-import codecs
-import glob
 import io
 import os
 import sys
 import textwrap
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
-
-from compdb.__about__ import (
-    __desc__,
-    __prog__,
-    __version__, )
-
-from compdb import (
-    filelist,
-    headerdb, )
-import compdb.db.aggregate
-import compdb.db.json
-import compdb.db.null
 import compdb.config
-
-HEADERDB_FILENAME = 'headerdb.json'
-
-
-# The issue this function tries to solve is to have a text writer where unicode
-# data can be written without decoding error. It should work in the following
-# conditions:
-# - python 2 & 3, output to terminal
-# - python 2 & 3, output to a pipe or shell redirection
-# - python 2 & 3, output to a StringIO (this one does not actually use UTF-8
-#   encoding)
-#
-# When using python 2, if the program output is redirected to a pipe or file,
-# the output encoding may be set to 'ascii',
-# potentially producing UnicodeEncodeError.
-# Redirections do not seem to cause such issue with python 3
-# but explicit utf-8 encoding seems a sensible choice to output data to be
-# consumed by other programs (e.g: JSON).
-def stdout_unicode_writer():
-    """Get unicode writer to output UTF-8 encoded data.
-
-    To be used for JSON dump and alike.
-
-    """
-    stream = sys.stdout
-    if isinstance(stream, StringIO):
-        return stream
-    if hasattr(stream, 'buffer'):
-        stream = stream.buffer
-    return codecs.getwriter('utf-8')(stream)
+import compdb.db.json
+from compdb.__about__ import (__desc__, __prog__, __version__)
+from compdb import (filelist, headerdb, utils)
+from compdb.db.json import compile_commands_to_json
+from compdb.models import CompilationDatabase
 
 
 # http://python-3-patterns-idioms-test.readthedocs.org/en/latest/Metaprogramming.html#example-self-registration-of-subclasses
@@ -89,6 +46,7 @@ class CommandBase(RegisteredCommand):
     def __init__(self):
         self.config = None
         self.args = None
+        self._database = None
 
     def set_config(self, config):
         self.config = config
@@ -96,70 +54,24 @@ class CommandBase(RegisteredCommand):
     def set_args(self, args):
         self.args = args
 
-    def _get_build_dir_globs(self):
-        return self.config.compdb.build_dir or []
-
-    def get_json_databases(self):
-        databases = []
-        if self.args.build_paths:
-            for build_path in self.args.build_paths:
-                jsondb = compdb.db.json.JSONCompilationDatabase.from_directory(
-                    build_path)
-                if not jsondb:
-                    print(
-                        "error: invalid JSON Compilation database:",
-                        build_path,
-                        file=sys.stderr)
-                    sys.exit(1)
-                databases.append(jsondb)
-            return databases
-        # if no build paths explicitly specified, use the config
-        for file_pattern in self._get_build_dir_globs():
-            # we are interested only in directories,
-            # glob will list only directories if the pattern ends with os.sep
-            dir_pattern = os.path.join(file_pattern, '')
-            found_any = False
-            for build_path in glob.iglob(dir_pattern):
-                jsondb = compdb.db.json.JSONCompilationDatabase.from_directory(
-                    build_path)
-                if jsondb:
-                    found_any = True
-                    databases.append(jsondb)
-            if not found_any:
-                print(
-                    "error: could not find any JSON Compilation database in ",
-                    dir_pattern,
-                    file=sys.stderr)
-                sys.exit(1)
-        return databases
-
-    def _compose_jsondb(self, jsondb):
-        headerdb = compdb.db.json.JSONCompilationDatabase(
-            os.path.join(jsondb.directory, HEADERDB_FILENAME))
-        return compdb.db.aggregate.AggregateCompilationDatabase(
-            [jsondb, headerdb])
+    def _make_database(self):
+        db = CompilationDatabase()
+        db.register_db(compdb.db.json.JSONCompilationDatabase)
+        try:
+            if self.args.build_paths:
+                db.add_directories(self.args.build_paths)
+            elif self.config.compdb.build_dir:
+                db.add_directory_patterns(self.config.compdb.build_dir)
+        except compdb.models.ProbeError as e:
+            print("error: invalid database(s): {}".format(e), file=sys.stderr)
+            sys.exit(1)
+        return db
 
     @property
     def database(self):
-        if not hasattr(self, '__database'):
-            databases = []
-            for jsondb in self.get_json_databases():
-                if self.config.compdb.headerdb:
-                    db = self._compose_jsondb(jsondb)
-                else:
-                    db = jsondb
-                databases.append(db)
-            if not databases:
-                # default to a null database
-                setattr(self, '__database',
-                        compdb.db.null.NullCompilationDatabase())
-            elif len(databases) == 1:
-                setattr(self, '__database', databases[0])
-            else:
-                setattr(self, '__database',
-                        compdb.db.aggregate.AggregateCompilationDatabase(
-                            databases))
-        return getattr(self, '__database')
+        if not self._database:
+            self._database = self._make_database()
+        return self._database
 
 
 class HelpCommand(CommandBase):
@@ -274,8 +186,8 @@ class DumpCommand(CommandBase):
     help_short = 'dump the compilation database(s)'
 
     def execute(self):
-        compdb.db.json.compile_commands_to_json(
-            self.database.get_all_compile_commands(), stdout_unicode_writer())
+        compile_commands_to_json(self.database.get_all_compile_commands(),
+                                 utils.stdout_unicode_writer())
 
 
 class FindCommand(CommandBase):
@@ -310,8 +222,7 @@ class FindCommand(CommandBase):
             results.append(first)
             if not self.args.unique:
                 results.extend(compile_commands)
-        compdb.db.json.compile_commands_to_json(results,
-                                                stdout_unicode_writer())
+        compile_commands_to_json(results, utils.stdout_unicode_writer())
 
 
 class UpdateCommand(CommandBase):
@@ -325,12 +236,14 @@ class UpdateCommand(CommandBase):
                 'compdb.headerdb is not enabled in config',
                 file=sys.stderr)
             sys.exit(1)
-        for jsondb in self.get_json_databases():
-            output_path = os.path.join(jsondb.directory, HEADERDB_FILENAME)
-            with io.open(output_path, 'w', encoding='utf8') as f:
-                print("Writing {}...".format(output_path), end="", flush=True)
-                headerdb.make_headerdb(jsondb.get_all_compile_commands(), f)
+        for state, update in self.database.update_overlays():
+            if state == 'pre-update':
+                print(
+                    "Writing {}...".format(update['file']), end="", flush=True)
+            elif state == 'post-update':
                 print("done")
+            else:
+                print("unsupported: {}: {}".format(state, update))
 
 
 class HeaderDbCommand(CommandBase):
@@ -345,7 +258,7 @@ class HeaderDbCommand(CommandBase):
 
     def execute(self):
         headerdb.make_headerdb(self.database.get_all_compile_commands(),
-                               stdout_unicode_writer())
+                               utils.stdout_unicode_writer())
 
 
 def _get_suppressions_patterns_from_file(path):

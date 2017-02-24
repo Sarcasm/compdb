@@ -14,3 +14,15 @@ __all__ = [
     '__url__',
     '__version__',
 ]
+
+
+class CompdbError(Exception):
+    '''Basic exception for errors raised by compdb'''
+
+    def __init__(self, message, cause=None):
+        super(CompdbError, self).__init__(message)
+        self.cause = cause
+
+
+class NotImplemented(NotImplementedError, CompdbError):
+    pass
