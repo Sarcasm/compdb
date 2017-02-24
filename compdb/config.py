@@ -153,6 +153,10 @@ class SectionSchema(object):
     def register_path_list(self, name, desc):
         self._register(name, parse_option_list_path, desc)
 
+    def register_glob_list(self, name, desc):
+        # register as a path list, no distinction needed at this time
+        self._register(name, parse_option_list_path, desc)
+
 
 class ConfigSchema(object):
     def __init__(self):

@@ -2,6 +2,7 @@ from __future__ import print_function, unicode_literals, absolute_import
 
 import argparse
 import codecs
+import glob
 import io
 import os
 import sys
@@ -95,25 +96,41 @@ class CommandBase(RegisteredCommand):
     def set_args(self, args):
         self.args = args
 
-    def get_build_directories(self):
-        if self.args.build_paths:
-            return self.args.build_paths
-        if self.config.compdb.build_dir:
-            return [self.config.compdb.build_dir]
-        return []
+    def _get_build_dir_globs(self):
+        return self.config.compdb.build_dir or []
 
     def get_json_databases(self):
         databases = []
-        for build_path in self.get_build_directories():
-            jsondb = compdb.db.json.JSONCompilationDatabase.from_directory(
-                build_path)
-            if not jsondb:
+        if self.args.build_paths:
+            for build_path in self.args.build_paths:
+                jsondb = compdb.db.json.JSONCompilationDatabase.from_directory(
+                    build_path)
+                if not jsondb:
+                    print(
+                        "error: invalid JSON Compilation database:",
+                        build_path,
+                        file=sys.stderr)
+                    sys.exit(1)
+                databases.append(jsondb)
+            return databases
+        # if no build paths explicitly specified, use the config
+        for file_pattern in self._get_build_dir_globs():
+            # we are interested only in directories,
+            # glob will list only directories if the pattern ends with os.sep
+            dir_pattern = os.path.join(file_pattern, '')
+            found_any = False
+            for build_path in glob.iglob(dir_pattern):
+                jsondb = compdb.db.json.JSONCompilationDatabase.from_directory(
+                    build_path)
+                if jsondb:
+                    found_any = True
+                    databases.append(jsondb)
+            if not found_any:
                 print(
-                    "error: invalid JSON Compilation database:",
-                    build_path,
+                    "error: could not find any JSON Compilation database in ",
+                    dir_pattern,
                     file=sys.stderr)
                 sys.exit(1)
-            databases.append(jsondb)
         return databases
 
     def _compose_jsondb(self, jsondb):
@@ -550,7 +567,7 @@ def main(argv=None):
 
     config_schema = compdb.config.ConfigSchema()
     compdb_schema = config_schema.get_section_schema('compdb')
-    compdb_schema.register_path('build-dir', 'the build directories')
+    compdb_schema.register_glob_list('build-dir', 'the build directories')
     compdb_schema.register_bool('headerdb',
                                 'whether or not headerdb should be used')
     for command_cls in RegisteredCommand:
