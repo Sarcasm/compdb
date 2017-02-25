@@ -8,12 +8,26 @@ from compdb.models import ProbeError
 from compdb.utils import suppress
 
 
+def _chain_get_compile_commands(databases, filepath):
+    return itertools.chain.from_iterable((db.get_compile_commands(filepath)
+                                          for db in databases))
+
+
+def _chain_get_all_files(databases):
+    return itertools.chain.from_iterable((db.get_all_files()
+                                          for db in databases))
+
+
+def _chain_get_all_compile_commands(databases):
+    return itertools.chain.from_iterable((db.get_all_compile_commands()
+                                          for db in databases))
+
+
 class CompilationDatabase(object):
     def __init__(self):
         self.registry = []
-        self.databases = []
         self.overlays = []
-        self.__overlayed_databases = []
+        self.databases = []
 
     def register_db(self, db_cls):
         if db_cls not in self.registry:
@@ -22,6 +36,12 @@ class CompilationDatabase(object):
     def register_overlay(self, overlay):
         self.overlays.append(overlay)
 
+    def _add_databases(self, databases):
+        self.databases.extend(databases)
+
+    def _add_database(self, database):
+        self._add_databases([database])
+
     def _probe_dir(self, directory):
         for compdb_cls in self.registry:
             with suppress(ProbeError):
@@ -29,7 +49,7 @@ class CompilationDatabase(object):
         raise ProbeError(directory)
 
     def add_directory(self, directory):
-        self.databases.append(self._probe_dir(directory))
+        self._add_database(self._probe_dir(directory))
 
     def add_directories(self, directories):
         """Either all directories are added successfuly
@@ -37,7 +57,7 @@ class CompilationDatabase(object):
         databases = []
         for directory in directories:
             databases.append(self._probe_dir(directory))
-        self.databases.extend(databases)
+        self._add_databases(databases)
 
     def _add_directory_pattern1(self, path_pattern):
         # we are interested only in directories,
@@ -54,31 +74,22 @@ class CompilationDatabase(object):
 
     def add_directory_pattern(self, path_pattern):
         """If no compilation database is found, a ProbeError is raised."""
-        self.databases.extend(self._add_directory_pattern1(path_pattern))
+        self._add_databases(self._add_directory_pattern1(path_pattern))
 
     def add_directory_patterns(self, path_patterns):
         databases = []
         for path_pattern in path_patterns:
             databases.extend(self._add_directory_pattern1(path_pattern))
-        self.databases.extend(databases)
+        self._add_databases(databases)
 
     def update_overlays(self):
         pass
 
-    @property
-    def _overlayed_databases(self):
-        return self.databases
-
     def get_compile_commands(self, filepath):
-        return itertools.chain.from_iterable(
-            (cdb.get_compile_commands(filepath)
-             for cdb in self._overlayed_databases))
+        return _chain_get_all_compile_commands(self.databases, filepath)
 
     def get_all_files(self):
-        return itertools.chain.from_iterable(
-            (cdb.get_all_files() for cdb in self._overlayed_databases))
+        return _chain_get_all_files(self.databases)
 
     def get_all_compile_commands(self):
-        return itertools.chain.from_iterable(
-            (cdb.get_all_compile_commands()
-             for cdb in self._overlayed_databases))
+        return _chain_get_all_compile_commands(self.databases)
