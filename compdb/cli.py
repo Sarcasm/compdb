@@ -11,7 +11,7 @@ import compdb.db.json
 from compdb.__about__ import (__desc__, __prog__, __version__)
 from compdb import (filelist, headerdb, utils)
 from compdb.db.json import compile_commands_to_json
-from compdb.models import CompilationDatabase
+from compdb.core import CompilationDatabase
 
 
 # http://python-3-patterns-idioms-test.readthedocs.org/en/latest/Metaprogramming.html#example-self-registration-of-subclasses
