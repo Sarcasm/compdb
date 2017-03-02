@@ -17,7 +17,7 @@ __all__ = [
 
 
 class CompdbError(Exception):
-    '''Basic exception for errors raised by compdb'''
+    '''Base exception for errors raised by compdb'''
 
     def __init__(self, message, cause=None):
         super(CompdbError, self).__init__(message)

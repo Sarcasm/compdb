@@ -4,7 +4,7 @@ import os
 import re
 
 import compdb.db.json
-from compdb.models import CompileCommand
+from compdb.models import (CompileCommand, DatabaseOverlayInterface)
 
 
 def sanitize_compile_options(compile_command):
@@ -191,7 +191,7 @@ def score_other_file(a, b):
     return score
 
 
-def make_headerdb1(compile_commands_iter, parentdb):
+def _make_headerdb1(compile_commands_iter, parentdb):
     header_mapping = {}
     for compile_command in compile_commands_iter:
         implicit_search_path = get_implicit_header_search_path(compile_command)
@@ -229,16 +229,29 @@ def make_headerdb1(compile_commands_iter, parentdb):
     return header_mapping
 
 
-def make_headerdb(compile_commands_iter, fp):
+def _make_headerdb(compile_commands_iter):
     # mapping of <header normalized absolute path> -> (score, compile_command)
     headerdb = {}
-    db_update = make_headerdb1(compile_commands_iter, headerdb)
+    db_update = _make_headerdb1(compile_commands_iter, headerdb)
     # loop until there is nothing more to resolve
     # we first get the files directly included by the compilation database
     # then the files directly included by these files and so on
     while db_update:
         headerdb.update(db_update)
-        db_update = make_headerdb1((cmd for _, cmd in db_update.values()),
-                                   headerdb)
+        db_update = _make_headerdb1((cmd for _, cmd in db_update.values()),
+                                    headerdb)
+    return (cmd for _, cmd in headerdb.values())
+
+
+def make_headerdb(compile_commands_iter, fp):
     compdb.db.json.compile_commands_to_json(
-        (cmd for _, cmd in headerdb.values()), fp)
+        _make_headerdb(compile_commands_iter), fp)
+
+
+class HeaderdbDatabaseOverlay(DatabaseOverlayInterface):
+    @property
+    def name(self):
+        return 'headerdb'
+
+    def compute(self, compilation_database):
+        return _make_headerdb(compilation_database.get_all_compile_commands())

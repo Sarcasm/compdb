@@ -4,6 +4,7 @@ import codecs
 import contextlib
 import itertools
 import os
+import re
 import sys
 
 try:
@@ -38,6 +39,11 @@ def suppress(*exceptions):
         yield
     except exceptions:
         pass
+
+
+def re_fullmatch(regex, string, flags=0):
+    """Emulate python-3.4 re.fullmatch()."""
+    return re.match("(?:" + regex + r")\Z", string, flags=flags)
 
 
 # The issue this function tries to solve is to have a text writer where unicode

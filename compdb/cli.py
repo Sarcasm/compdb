@@ -57,6 +57,8 @@ class CommandBase(RegisteredCommand):
     def _make_database(self):
         db = CompilationDatabase()
         db.register_db(compdb.db.json.JSONCompilationDatabase)
+        if self.config.compdb.headerdb:
+            db.register_overlay(headerdb.HeaderdbDatabaseOverlay())
         try:
             if self.args.build_paths:
                 db.add_directories(self.args.build_paths)

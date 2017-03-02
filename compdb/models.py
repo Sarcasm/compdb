@@ -58,3 +58,14 @@ class CompilationDatabaseInterface(object):
     def get_all_compile_commands(self):
         """Return an iterable of CompileCommand."""
         raise compdb.NotImplementedError
+
+
+class DatabaseOverlayInterface(object):
+    @property
+    def name(self):
+        """A short name of the form [a-z]+(_[a-z]+)*."""
+        raise compdb.NotImplementedError
+
+    def compute(self, compilation_database):
+        """Compute a database that complete the passed database."""
+        raise compdb.NotImplementedError
