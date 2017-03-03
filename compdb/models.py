@@ -60,12 +60,21 @@ class CompilationDatabaseInterface(object):
         raise compdb.NotImplementedError
 
 
-class DatabaseOverlayInterface(object):
+class ComplementerInterface(object):
+    """Provides a method to compute a compilation datbase complement.
+
+    .. seealso:: complement()
+    """
+
     @property
     def name(self):
         """A short name of the form [a-z]+(_[a-z]+)*."""
         raise compdb.NotImplementedError
 
-    def compute(self, compilation_database):
-        """Compute a database that complete the passed database."""
+    def complement(self, compilation_database):
+        """Compute the complement of a database.
+
+        This method should provide compile commands of files not present in the
+        compilation database but that are part of the same project.
+        """
         raise compdb.NotImplementedError

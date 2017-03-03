@@ -4,7 +4,7 @@ import os
 import re
 
 import compdb.db.json
-from compdb.models import (CompileCommand, DatabaseOverlayInterface)
+from compdb.models import (CompileCommand, ComplementerInterface)
 
 
 def sanitize_compile_options(compile_command):
@@ -248,10 +248,10 @@ def make_headerdb(compile_commands_iter, fp):
         _make_headerdb(compile_commands_iter), fp)
 
 
-class HeaderdbDatabaseOverlay(DatabaseOverlayInterface):
+class HeaderdbComplementer(ComplementerInterface):
     @property
     def name(self):
         return 'headerdb'
 
-    def compute(self, compilation_database):
+    def complement(self, compilation_database):
         return _make_headerdb(compilation_database.get_all_compile_commands())

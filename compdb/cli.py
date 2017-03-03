@@ -58,7 +58,7 @@ class CommandBase(RegisteredCommand):
         db = CompilationDatabase()
         db.register_db(compdb.db.json.JSONCompilationDatabase)
         if self.config.compdb.headerdb:
-            db.register_overlay(headerdb.HeaderdbDatabaseOverlay())
+            db.add_complementer(headerdb.HeaderdbComplementer())
         try:
             if self.args.build_paths:
                 db.add_directories(self.args.build_paths)
@@ -229,7 +229,7 @@ class FindCommand(CommandBase):
 
 class UpdateCommand(CommandBase):
     name = 'update'
-    help_short = 'update compilation databases to contain all workspace files'
+    help_short = 'update complementary databases cache'
 
     def execute(self):
         if not self.config.compdb.headerdb:
@@ -238,11 +238,15 @@ class UpdateCommand(CommandBase):
                 'compdb.headerdb is not enabled in config',
                 file=sys.stderr)
             sys.exit(1)
-        for state, update in self.database.update_overlays():
-            if state == 'pre-update':
+        for state, update in self.database.update_complements():
+            if state == 'begin':
+                print('Start {complementer}:'.format(**update))
+            elif state == 'end':
+                pass  # no visual feedback on purpose for this one
+            elif state == 'pre-complement':
                 print(
-                    "Writing {}...".format(update['file']), end="", flush=True)
-            elif state == 'post-update':
+                    "  Writing {file}...".format(**update), end="", flush=True)
+            elif state == 'post-complement':
                 print("done")
             else:
                 print("unsupported: {}: {}".format(state, update))
