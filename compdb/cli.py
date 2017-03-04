@@ -244,8 +244,8 @@ class UpdateCommand(CommandBase):
             elif state == 'end':
                 pass  # no visual feedback on purpose for this one
             elif state == 'pre-complement':
-                print(
-                    "  Writing {file}...".format(**update), end="", flush=True)
+                print("  Writing {file}...".format(**update), end="")
+                sys.stdout.flush()
             elif state == 'post-complement':
                 print("done")
             else:
