@@ -3,7 +3,6 @@ from __future__ import print_function, unicode_literals, absolute_import
 import os
 import re
 
-from compdb.db.json import compile_commands_to_json
 from compdb.db.memory import InMemoryCompilationDatabase
 from compdb.complementer import ComplementerInterface
 from compdb.models import CompileCommand
@@ -231,10 +230,11 @@ def _make_headerdb1(compile_commands_iter, parentdb):
     return header_mapping
 
 
-def _make_headerdb(compile_commands_iter):
+def make_headerdb(compilation_database):
     # mapping of <header normalized absolute path> -> (score, compile_command)
     headerdb = {}
-    db_update = _make_headerdb1(compile_commands_iter, headerdb)
+    db_update = _make_headerdb1(
+        compilation_database.get_all_compile_commands(), headerdb)
     # loop until there is nothing more to resolve
     # we first get the files directly included by the compilation database
     # then the files directly included by these files and so on
@@ -245,17 +245,12 @@ def _make_headerdb(compile_commands_iter):
     return (cmd for _, cmd in headerdb.values())
 
 
-def make_headerdb(compile_commands_iter, fp):
-    compile_commands_to_json(_make_headerdb(compile_commands_iter), fp)
-
-
 class Complementer(ComplementerInterface):
     name = 'headerdb'
 
     def complement(self, databases):
         res = []
         for compilation_database in databases:
-            compile_commands = _make_headerdb(
-                compilation_database.get_all_compile_commands())
+            compile_commands = make_headerdb(compilation_database)
             res.append(InMemoryCompilationDatabase(compile_commands))
         return res

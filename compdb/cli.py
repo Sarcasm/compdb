@@ -281,9 +281,9 @@ class HeaderDbCommand(CommandBase):
     """
 
     def execute(self):
-        compdb.complementer.headerdb.make_headerdb(
-            self.make_database().get_all_compile_commands(),
-            utils.stdout_unicode_writer())
+        database = self.make_database()
+        headerdb = compdb.complementer.headerdb.make_headerdb(database)
+        compile_commands_to_json(headerdb, utils.stdout_unicode_writer())
 
 
 def _get_suppressions_patterns_from_file(path):
