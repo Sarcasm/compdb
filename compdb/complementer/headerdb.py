@@ -5,7 +5,8 @@ import re
 
 from compdb.db.json import compile_commands_to_json
 from compdb.db.memory import InMemoryCompilationDatabase
-from compdb.models import (CompileCommand, ComplementerInterface)
+from compdb.complementer import ComplementerInterface
+from compdb.models import CompileCommand
 
 
 def sanitize_compile_options(compile_command):
@@ -248,10 +249,8 @@ def make_headerdb(compile_commands_iter, fp):
     compile_commands_to_json(_make_headerdb(compile_commands_iter), fp)
 
 
-class HeaderdbComplementer(ComplementerInterface):
-    @property
-    def name(self):
-        return 'headerdb'
+class Complementer(ComplementerInterface):
+    name = 'headerdb'
 
     def complement(self, databases):
         res = []

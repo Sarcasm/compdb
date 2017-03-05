@@ -24,5 +24,5 @@ class CompdbError(Exception):
         self.cause = cause
 
 
-class NotImplemented(NotImplementedError, CompdbError):
+class NotImplementedError(NotImplementedError, CompdbError):
     pass

@@ -8,8 +8,9 @@ import textwrap
 
 import compdb.config
 import compdb.db.json
+import compdb.complementer.headerdb
 from compdb.__about__ import (__desc__, __prog__, __version__)
-from compdb import (filelist, headerdb, utils)
+from compdb import (filelist, utils)
 from compdb.db.json import compile_commands_to_json
 from compdb.core import CompilationDatabase
 
@@ -58,9 +59,10 @@ class CommandBase(RegisteredCommand):
         return [compdb.db.json.JSONCompilationDatabase]
 
     def get_complementers(self):
+        complementers = []
         if self.config.compdb.headerdb:
-            return [headerdb.HeaderdbComplementer()]
-        return []
+            complementers.append(compdb.complementer.headerdb.Complementer())
+        return complementers
 
     def make_unpopulated_database(self):
         db = CompilationDatabase()
@@ -279,8 +281,9 @@ class HeaderDbCommand(CommandBase):
     """
 
     def execute(self):
-        headerdb.make_headerdb(self.make_database().get_all_compile_commands(),
-                               utils.stdout_unicode_writer())
+        compdb.complementer.headerdb.make_headerdb(
+            self.make_database().get_all_compile_commands(),
+            utils.stdout_unicode_writer())
 
 
 def _get_suppressions_patterns_from_file(path):
