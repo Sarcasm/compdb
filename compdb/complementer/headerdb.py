@@ -192,7 +192,7 @@ def score_other_file(a, b):
     return score
 
 
-def _make_headerdb1(compile_commands_iter, parentdb):
+def _make_headerdb1(compile_commands_iter, db_files):
     header_mapping = {}
     for compile_command in compile_commands_iter:
         implicit_search_path = get_implicit_header_search_path(compile_command)
@@ -216,11 +216,8 @@ def _make_headerdb1(compile_commands_iter, parentdb):
                 else:
                     continue
             norm_abspath = os.path.normpath(header_abspath)
-            # skip files already present in the parent database
-            # TODO: should also skip files already iterated over in the initial
-            # compile_commands_iter. It happened on mozilla sources for source
-            # files to be #included
-            if norm_abspath in parentdb:
+            # skip files already present in the database
+            if norm_abspath in db_files:
                 continue
             score = score_other_file(src_file, norm_abspath)
             if score > header_mapping.get(norm_abspath, (score - 1, None))[0]:
@@ -231,17 +228,19 @@ def _make_headerdb1(compile_commands_iter, parentdb):
 
 
 def make_headerdb(compilation_database):
+    db_files = set(compilation_database.get_all_files())
     # mapping of <header normalized absolute path> -> (score, compile_command)
     headerdb = {}
     db_update = _make_headerdb1(
-        compilation_database.get_all_compile_commands(), headerdb)
+        compilation_database.get_all_compile_commands(), db_files)
     # loop until there is nothing more to resolve
     # we first get the files directly included by the compilation database
     # then the files directly included by these files and so on
     while db_update:
         headerdb.update(db_update)
+        db_files.update(db_update.keys())
         db_update = _make_headerdb1((cmd for _, cmd in db_update.values()),
-                                    headerdb)
+                                    db_files)
     return (cmd for _, cmd in headerdb.values())
 
 
