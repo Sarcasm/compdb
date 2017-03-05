@@ -85,19 +85,27 @@ _compdb-config() {
   esac
 }
 
+(( $+functions[_compdb-find] )) ||
+_compdb-find() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-):source file:_files -g \*.\(c\|h\|cc\|hh\|cpp\|hpp\|cxx\|hxx\|c\+\+\|h\+\+\)'
+}
+
 (( $+functions[__compdb_commands] )) ||
 _compdb_commands() {
   local -a commands
 
   commands=(
     check-db:"report files absent from the compilation database"
+    config:"get directory and global configuration options"
     dump:"dump the compilation database(s)"
     find:"find compile command(s) for a file"
     headerdb:"generate header compilation database from compile command(s)"
     help:"display this help"
     scan-files:"scan directory for source files"
+    update:"update complementary databases cache"
     version:"display this version of compdb"
-    config:"get directory and global configuration options"
   )
 
   _describe -t compdb-commands "command" commands
@@ -109,6 +117,7 @@ _compdb() {
     '(- :)'{-h,--help}'[show help message and exit]'
     # TODO: completion for 'section.option=value'
     '*-c[set value of configuration variable NAME for this invocation]:key:'
+    '*-p[build path]:build directory:_files -/'
   )
 
   local curcontext="$curcontext" state line
