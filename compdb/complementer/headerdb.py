@@ -249,8 +249,9 @@ class Complementer(ComplementerInterface):
     name = 'headerdb'
 
     def complement(self, databases):
-        res = []
+        complementary_databases = []
         for compilation_database in databases:
             compile_commands = make_headerdb(compilation_database)
-            res.append(InMemoryCompilationDatabase(compile_commands))
-        return res
+            complementary_databases.append(
+                InMemoryCompilationDatabase(compile_commands))
+        return complementary_databases
