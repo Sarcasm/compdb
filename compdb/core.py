@@ -97,6 +97,7 @@ class CompilationDatabase(object):
         self.registry = []
         self.complementers = []
         self.databases = []
+        self.raise_on_missing_cache = True
 
     def register_db(self, db_cls):
         if db_cls not in self.registry:
@@ -124,7 +125,10 @@ class CompilationDatabase(object):
         for complementer in self.complementers:
             cache_path = os.path.join(directory, complementer.cache_filename)
             if not os.path.exists(cache_path):
-                raise ComplementerCacheNotFound(complementer, directory)
+                if self.raise_on_missing_cache:
+                    raise ComplementerCacheNotFound(complementer, directory)
+                else:
+                    continue
             complemented_database.add_complementary_database(
                 JSONCompilationDatabase(cache_path))
         return complemented_database

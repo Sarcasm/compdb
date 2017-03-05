@@ -54,26 +54,36 @@ class CommandBase(RegisteredCommand):
     def set_args(self, args):
         self.args = args
 
-    def _make_database(self):
-        db = CompilationDatabase()
-        db.register_db(compdb.db.json.JSONCompilationDatabase)
+    def get_database_classes(self):
+        return [compdb.db.json.JSONCompilationDatabase]
+
+    def get_complementers(self):
         if self.config.compdb.headerdb:
-            db.add_complementer(headerdb.HeaderdbComplementer())
+            return [headerdb.HeaderdbComplementer()]
+        return []
+
+    def make_unpopulated_database(self):
+        db = CompilationDatabase()
+        for database_cls in self.get_database_classes():
+            db.register_db(database_cls)
+        for complementer in self.get_complementers():
+            db.add_complementer(complementer)
+        return db
+
+    def populate_database(self, database):
         try:
             if self.args.build_paths:
-                db.add_directories(self.args.build_paths)
+                database.add_directories(self.args.build_paths)
             elif self.config.compdb.build_dir:
-                db.add_directory_patterns(self.config.compdb.build_dir)
+                database.add_directory_patterns(self.config.compdb.build_dir)
         except compdb.models.ProbeError as e:
             print("error: invalid database(s): {}".format(e), file=sys.stderr)
             sys.exit(1)
-        return db
 
-    @property
-    def database(self):
-        if not self._database:
-            self._database = self._make_database()
-        return self._database
+    def make_database(self):
+        db = self.make_unpopulated_database()
+        self.populate_database(db)
+        return db
 
 
 class HelpCommand(CommandBase):
@@ -188,8 +198,9 @@ class DumpCommand(CommandBase):
     help_short = 'dump the compilation database(s)'
 
     def execute(self):
-        compile_commands_to_json(self.database.get_all_compile_commands(),
-                                 utils.stdout_unicode_writer())
+        compile_commands_to_json(
+            self.make_database().get_all_compile_commands(),
+            utils.stdout_unicode_writer())
 
 
 class FindCommand(CommandBase):
@@ -213,7 +224,7 @@ class FindCommand(CommandBase):
     def execute(self):
         results = []
         for file in self.args.files:
-            compile_commands = self.database.get_compile_commands(file)
+            compile_commands = self.make_database().get_compile_commands(file)
             try:
                 first = next(compile_commands)
             except StopIteration:
@@ -238,7 +249,12 @@ class UpdateCommand(CommandBase):
                 'compdb.headerdb is not enabled in config',
                 file=sys.stderr)
             sys.exit(1)
-        for state, update in self.database.update_complements():
+
+        database = self.make_unpopulated_database()
+        database.raise_on_missing_cache = False
+        self.populate_database(database)
+
+        for state, update in database.update_complements():
             if state == 'begin':
                 print('Start {complementer}:'.format(**update))
             elif state == 'end':
@@ -263,7 +279,7 @@ class HeaderDbCommand(CommandBase):
     """
 
     def execute(self):
-        headerdb.make_headerdb(self.database.get_all_compile_commands(),
+        headerdb.make_headerdb(self.make_database().get_all_compile_commands(),
                                utils.stdout_unicode_writer())
 
 
@@ -364,7 +380,8 @@ class CheckDbCommand(CommandBase):
 
     def execute(self):
         scanner = _make_file_scanner(self.config, self.args)
-        db_files = frozenset(self.database.get_all_files())
+        database = self.make_database()
+        db_files = frozenset(database.get_all_files())
         list_files = frozenset(scanner.scan_many(self.args.path))
 
         # this only is not a hard error, files may be in system paths or build
