@@ -20,10 +20,6 @@ class JSONCompilationDatabase(CompilationDatabaseInterface):
             return cls(db_path)
         return super(JSONCompilationDatabase, cls).probe_directory(directory)
 
-    @property
-    def directory(self):
-        return os.path.dirname(self.json_db_path)
-
     def get_compile_commands(self, filepath):
         filepath = os.path.abspath(filepath)
         for elem in self._data:

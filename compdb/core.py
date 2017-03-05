@@ -88,8 +88,8 @@ class _ComplementerWrapper(object):
     def cache_filename(self):
         return self.name + '.json'
 
-    def complement(self, compilation_database):
-        return self.complementer.complement(compilation_database)
+    def complement(self, databases):
+        return self.complementer.complement(databases)
 
 
 class CompilationDatabase(object):
@@ -174,16 +174,16 @@ class CompilationDatabase(object):
         # each complement depends on its predecesors
         for complementer in self.complementers:
             yield ('begin', {'complementer': complementer.name})
-            for db in self.databases:
+            for db, complementary_db in zip(
+                    self.databases, complementer.complement(self.databases)):
                 cache_path = os.path.join(db.directory,
                                           complementer.cache_filename)
                 yield ('pre-complement', {'file': cache_path})
-                compile_commands = complementer.complement(db)
                 with io.open(cache_path, 'w', encoding='utf8') as f:
-                    compile_commands_to_json(compile_commands, f)
+                    compile_commands_to_json(
+                        complementary_db.get_all_compile_commands(), f)
                 yield ('post-complement', {'file': cache_path})
-                db.add_complementary_database(
-                    JSONCompilationDatabase(cache_path))
+                db.add_complementary_database(complementary_db)
             yield ('end', {'complementer': complementer.name})
 
     def get_compile_commands(self, filepath):
