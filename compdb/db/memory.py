@@ -6,8 +6,11 @@ from compdb.models import CompilationDatabaseInterface
 
 
 class InMemoryCompilationDatabase(CompilationDatabaseInterface):
-    def __init__(self, compile_commands):
-        self.compile_commands = compile_commands
+    def __init__(self, compile_commands=None):
+        if compile_commands is None:
+            self.compile_commands = []
+        else:
+            self.compile_commands = compile_commands
 
     def get_compile_commands(self, filepath):
         filepath = os.path.abspath(filepath)
@@ -16,8 +19,7 @@ class InMemoryCompilationDatabase(CompilationDatabaseInterface):
                 yield compile_command
 
     def get_all_files(self):
-        for compile_command in self.compile_commands:
-            yield compile_command.normfile
+        return (c.normfile for c in self.compile_commands)
 
     def get_all_compile_commands(self):
         return iter(self.compile_commands)

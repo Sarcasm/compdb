@@ -193,18 +193,18 @@ def score_other_file(a, b):
 
 
 class _Data(object):
-    __slots__ = ['score', 'compile_command']
+    __slots__ = ['score', 'compile_command', 'db_idx']
 
-    def __init__(self, score=0, compile_command=None):
+    def __init__(self, score=0, compile_command=None, db_idx=-1):
         self.score = score
         if compile_command is None:
             self.compile_command = {}
         else:
             self.compile_command = compile_command
+        self.db_idx = db_idx
 
 
-def _make_headerdb1(compile_commands_iter, db_files):
-    header_mapping = {}
+def _make_headerdb1(compile_commands_iter, db_files, db_idx, header_mapping):
     for compile_command in compile_commands_iter:
         implicit_search_path = get_implicit_header_search_path(compile_command)
         header_search_paths = extract_include_dirs(compile_command)
@@ -240,37 +240,42 @@ def _make_headerdb1(compile_commands_iter, db_files):
                 data.score = score
                 data.compile_command = derive_compile_command(norm_abspath,
                                                               compile_command)
-    return header_mapping
+                data.db_idx = db_idx
 
 
-def make_headerdb(compilation_database):
-    db_files = set(compilation_database.get_all_files())
-    headerdb = []
+def make_headerdb(databases):
+    databases_len = len(databases)
+    complementary_databases = [
+        InMemoryCompilationDatabase() for _ in range(databases_len)
+    ]
+
+    db_files = set()
+    for database in databases:
+        db_files.update(database.get_all_files())
 
     # loop until there is nothing more to resolve
     # we first get the files directly included by the compilation database
     # then the files directly included by these files and so on
-    compile_commands = compilation_database.get_all_compile_commands()
     while True:
         # mapping of <header normalized absolute path> -> _Data
-        db_update = _make_headerdb1(compile_commands, db_files)
+        db_update = {}
+        for i, database in enumerate(databases):
+            _make_headerdb1(database.get_all_compile_commands(), db_files, i,
+                            db_update)
         if not db_update:
             break
+        databases = [
+            InMemoryCompilationDatabase() for _ in range(databases_len)
+        ]
         for k, v in db_update.items():
-            db_files.update(k)
-            headerdb.append(v.compile_command)
-        compile_commands = (data.compile_command
-                            for data in db_update.values())
-    return iter(headerdb)
+            db_files.add(k)
+            for db_list in (databases, complementary_databases):
+                db_list[v.db_idx].compile_commands.append(v.compile_command)
+    return complementary_databases
 
 
 class Complementer(ComplementerInterface):
     name = 'headerdb'
 
     def complement(self, databases):
-        complementary_databases = []
-        for compilation_database in databases:
-            compile_commands = make_headerdb(compilation_database)
-            complementary_databases.append(
-                InMemoryCompilationDatabase(compile_commands))
-        return complementary_databases
+        return make_headerdb(databases)
