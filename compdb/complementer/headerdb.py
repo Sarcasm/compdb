@@ -192,6 +192,17 @@ def score_other_file(a, b):
     return score
 
 
+class _Data(object):
+    __slots__ = ['score', 'compile_command']
+
+    def __init__(self, score=0, compile_command=None):
+        self.score = score
+        if compile_command is None:
+            self.compile_command = {}
+        else:
+            self.compile_command = compile_command
+
+
 def _make_headerdb1(compile_commands_iter, db_files):
     header_mapping = {}
     for compile_command in compile_commands_iter:
@@ -220,28 +231,37 @@ def _make_headerdb1(compile_commands_iter, db_files):
             if norm_abspath in db_files:
                 continue
             score = score_other_file(src_file, norm_abspath)
-            if score > header_mapping.get(norm_abspath, (score - 1, None))[0]:
-                header_compile_command = derive_compile_command(
-                    norm_abspath, compile_command)
-                header_mapping[norm_abspath] = (score, header_compile_command)
+            try:
+                data = header_mapping[norm_abspath]
+            except KeyError:
+                data = _Data(score=(score - 1))
+                header_mapping[norm_abspath] = data
+            if score > data.score:
+                data.score = score
+                data.compile_command = derive_compile_command(norm_abspath,
+                                                              compile_command)
     return header_mapping
 
 
 def make_headerdb(compilation_database):
     db_files = set(compilation_database.get_all_files())
-    # mapping of <header normalized absolute path> -> (score, compile_command)
-    headerdb = {}
-    db_update = _make_headerdb1(
-        compilation_database.get_all_compile_commands(), db_files)
+    headerdb = []
+
     # loop until there is nothing more to resolve
     # we first get the files directly included by the compilation database
     # then the files directly included by these files and so on
-    while db_update:
-        headerdb.update(db_update)
-        db_files.update(db_update.keys())
-        db_update = _make_headerdb1((cmd for _, cmd in db_update.values()),
-                                    db_files)
-    return (cmd for _, cmd in headerdb.values())
+    compile_commands = compilation_database.get_all_compile_commands()
+    while True:
+        # mapping of <header normalized absolute path> -> _Data
+        db_update = _make_headerdb1(compile_commands, db_files)
+        if not db_update:
+            break
+        for k, v in db_update.items():
+            db_files.update(k)
+            headerdb.append(v.compile_command)
+        compile_commands = (data.compile_command
+                            for data in db_update.values())
+    return iter(headerdb)
 
 
 class Complementer(ComplementerInterface):
