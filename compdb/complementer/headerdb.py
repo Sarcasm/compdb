@@ -107,7 +107,7 @@ def get_implicit_header_search_path(compile_command):
 
 SUBWORD_SEPARATORS_RE = re.compile("[^A-Za-z0-9]")
 
-# The comment is shitty because I don't fully understand what is going.
+# The comment is shitty because I don't fully understand what is going on.
 # Shamelessly stolen, then modified from:
 # - http://stackoverflow.com/a/29920015/951426
 SUBWORD_CAMEL_SPLIT_RE = re.compile(r"""

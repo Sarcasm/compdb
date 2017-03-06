@@ -7,7 +7,7 @@ import os
 
 import compdb
 from compdb.models import (CompilationDatabaseInterface, ProbeError)
-from compdb.utils import (suppress, re_fullmatch)
+from compdb.utils import (suppress, re_fullmatch, empty_iterator_wrap)
 from compdb.db.json import (JSONCompilationDatabase, compile_commands_to_json)
 
 
@@ -57,11 +57,12 @@ class _ComplementedDatabase(CompilationDatabaseInterface):
 
     def get_compile_commands(self, filepath):
         for db in self.databases:
-            compile_commands = db.get_compile_commands(filepath)
+            is_empty, compile_commands = empty_iterator_wrap(
+                db.get_compile_commands(filepath))
             # The complementary databases aren't supposed to contain files
             # from the main or precedings databases.
             # This allow us to early exit as soon as a match is found.
-            if compile_commands:
+            if not is_empty:
                 return compile_commands
         return iter(())
 
