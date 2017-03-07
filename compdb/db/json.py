@@ -35,7 +35,7 @@ class JSONCompilationDatabase(CompilationDatabaseInterface):
     def get_all_compile_commands(self):
         # PERFORMANCE: I think shlex is inherently slow,
         # something performing better may be necessary
-        return list(map(self._dict_to_compile_command, self._data))
+        return map(self._dict_to_compile_command, self._data)
 
     @staticmethod
     def _dict_to_compile_command(d):
