@@ -17,7 +17,7 @@ by spoon-feeding you the right compile options.
 
 ``compdb`` is not so much about generating the initial compilation database,
 this, is left to other tools, such as ``cmake`` and ``ninja``.
-It is only a glue between the initial compilation database and your tool.
+It is only a glue between the initial compilation database and your tool(s).
 
 
 Motivation
