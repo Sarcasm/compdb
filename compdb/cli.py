@@ -261,11 +261,8 @@ class UpdateCommand(CommandBase):
                 print('Start {complementer}:'.format(**update))
             elif state == 'end':
                 pass  # no visual feedback on purpose for this one
-            elif state == 'pre-complement':
-                print("  Writing {file}...".format(**update), end="")
-                sys.stdout.flush()
-            elif state == 'post-complement':
-                print("done")
+            elif state == 'saving':
+                print("  OUT {file}".format(**update))
             else:
                 print("unsupported: {}: {}".format(state, update))
 
@@ -282,7 +279,7 @@ class HeaderDbCommand(CommandBase):
 
     def execute(self):
         database = self.make_database()
-        headerdb = compdb.complementer.headerdb.make_headerdb([database])[0]
+        headerdb = compdb.complementer.headerdb.make_headerdb([[database]])[0]
         compile_commands_to_json(headerdb.get_all_compile_commands(),
                                  utils.stdout_unicode_writer())
 

@@ -6,9 +6,10 @@ import itertools
 import os
 
 import compdb
-from compdb.models import (CompilationDatabaseInterface, ProbeError)
+from compdb.models import ProbeError
 from compdb.utils import (suppress, re_fullmatch, empty_iterator_wrap)
 from compdb.db.json import (JSONCompilationDatabase, compile_commands_to_json)
+from compdb.db.memory import InMemoryCompilationDatabase
 
 
 class ComplementerError(compdb.CompdbError):
@@ -34,6 +35,11 @@ class ComplementerNameError(ComplementerError):
             "Invalid complementer name: '{}'".format(complementer.name))
 
 
+def _chain_get_compile_commands(databases, filepath):
+    return itertools.chain.from_iterable((db.get_compile_commands(filepath)
+                                          for db in databases))
+
+
 def _chain_get_all_files(databases):
     return itertools.chain.from_iterable((db.get_all_files()
                                           for db in databases))
@@ -42,35 +48,6 @@ def _chain_get_all_files(databases):
 def _chain_get_all_compile_commands(databases):
     return itertools.chain.from_iterable((db.get_all_compile_commands()
                                           for db in databases))
-
-
-class _ComplementedDatabase(CompilationDatabaseInterface):
-    def __init__(self, directory, base_database):
-        self.directory = directory
-        self.databases = [base_database]
-
-    def add_complementary_database(self, complementary_database):
-        self.databases.append(complementary_database)
-
-    def clear_complementary_databases(self):
-        del self.databases[1:]  # all but base_database
-
-    def get_compile_commands(self, filepath):
-        for db in self.databases:
-            is_empty, compile_commands = empty_iterator_wrap(
-                db.get_compile_commands(filepath))
-            # The complementary databases aren't supposed to contain files
-            # from the main or precedings databases.
-            # This allow us to early exit as soon as a match is found.
-            if not is_empty:
-                return compile_commands
-        return iter(())
-
-    def get_all_files(self):
-        return _chain_get_all_files(self.databases)
-
-    def get_all_compile_commands(self):
-        return _chain_get_all_compile_commands(self.databases)
 
 
 class _ComplementerWrapper(object):
@@ -95,44 +72,48 @@ class _ComplementerWrapper(object):
 
 class CompilationDatabase(object):
     def __init__(self):
-        self.registry = []
-        self.complementers = []
-        self.databases = []
+        self._registry = []
+        self._complementers = []
+        self._layers = [[]]
+        self._directories = []
         self.raise_on_missing_cache = True
 
     def register_db(self, db_cls):
-        if db_cls not in self.registry:
-            self.registry.append(db_cls)
+        if db_cls not in self._registry:
+            self._registry.append(db_cls)
 
     def add_complementer(self, complementer):
         complementer = _ComplementerWrapper(complementer)
-        self.complementers.append(complementer)
+        self._complementers.append(complementer)
+        self._layers.append([])
 
-    def _add_databases(self, databases):
-        self.databases.extend(databases)
+    def _add_databases(self, probe_results):
+        for complemented_database, directory in probe_results:
+            for i, db in enumerate(complemented_database):
+                self._layers[i].append(db)
+            self._directories.append(directory)
 
-    def _add_database(self, database):
-        self._add_databases([database])
+    def _add_database(self, probe_result):
+        self._add_databases([probe_result])
 
     def _probe_dir1(self, directory):
-        for compdb_cls in self.registry:
+        for compdb_cls in self._registry:
             with suppress(ProbeError):
-                return compdb_cls.probe_directory(directory)
-        raise ProbeError(directory)
+                yield compdb_cls.probe_directory(directory)
+                break
+        else:
+            raise ProbeError(directory)
+        for complementer in self._complementers:
+            cache_path = os.path.join(directory, complementer.cache_filename)
+            if os.path.exists(cache_path):
+                yield JSONCompilationDatabase(cache_path)
+            elif self.raise_on_missing_cache:
+                raise ComplementerCacheNotFound(complementer, directory)
+            else:
+                yield InMemoryCompilationDatabase()
 
     def _probe_dir(self, directory):
-        database = self._probe_dir1(directory)
-        complemented_database = _ComplementedDatabase(directory, database)
-        for complementer in self.complementers:
-            cache_path = os.path.join(directory, complementer.cache_filename)
-            if not os.path.exists(cache_path):
-                if self.raise_on_missing_cache:
-                    raise ComplementerCacheNotFound(complementer, directory)
-                else:
-                    continue
-            complemented_database.add_complementary_database(
-                JSONCompilationDatabase(cache_path))
-        return complemented_database
+        return (list(self._probe_dir1(directory)), directory)
 
     def add_directory(self, directory):
         self._add_database(self._probe_dir(directory))
@@ -169,30 +150,37 @@ class CompilationDatabase(object):
         self._add_databases(databases)
 
     def update_complements(self):
-        for db in self.databases:
-            db.clear_complementary_databases()
+        # clear all complementary databases but keep the initial database
+        del self._layers[1:]
         # incrementally compute the complements,
         # each complement depends on its predecesors
-        for complementer in self.complementers:
+        for complementer in self._complementers:
             yield ('begin', {'complementer': complementer.name})
-            for db, complementary_db in zip(
-                    self.databases, complementer.complement(self.databases)):
-                cache_path = os.path.join(db.directory,
+            layer = complementer.complement(self._layers)
+            self._layers.append(layer)
+            for db, directory in zip(layer, self._directories):
+                cache_path = os.path.join(directory,
                                           complementer.cache_filename)
-                yield ('pre-complement', {'file': cache_path})
+                yield ('saving', {'file': cache_path})
                 with io.open(cache_path, 'w', encoding='utf8') as f:
-                    compile_commands_to_json(
-                        complementary_db.get_all_compile_commands(), f)
-                yield ('post-complement', {'file': cache_path})
-                db.add_complementary_database(complementary_db)
+                    compile_commands_to_json(db.get_all_compile_commands(), f)
             yield ('end', {'complementer': complementer.name})
 
     def get_compile_commands(self, filepath):
-        return itertools.chain.from_iterable((db.get_compile_commands(filepath)
-                                              for db in self.databases))
+        for layer in self._layers:
+            is_empty, compile_commands = empty_iterator_wrap(
+                _chain_get_compile_commands(layer, filepath))
+            # The complementary databases aren't supposed to contain files
+            # from the main or precedings databases.
+            # This allow us to early exit as soon as a match is found.
+            if not is_empty:
+                return compile_commands
+        return iter(())
 
     def get_all_files(self):
-        return _chain_get_all_files(self.databases)
+        return itertools.chain.from_iterable((_chain_get_all_files(layer)
+                                              for layer in self._layers))
 
     def get_all_compile_commands(self):
-        return _chain_get_all_compile_commands(self.databases)
+        return itertools.chain.from_iterable(
+            (_chain_get_all_compile_commands(layer) for layer in self._layers))

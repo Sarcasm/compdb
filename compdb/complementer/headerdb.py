@@ -243,15 +243,16 @@ def _make_headerdb1(compile_commands_iter, db_files, db_idx, header_mapping):
                 data.db_idx = db_idx
 
 
-def make_headerdb(databases):
-    databases_len = len(databases)
+def make_headerdb(layers):
+    databases_len = len(layers[0])
     complementary_databases = [
         InMemoryCompilationDatabase() for _ in range(databases_len)
     ]
 
     db_files = set()
-    for database in databases:
-        db_files.update(database.get_all_files())
+    for layer in layers:
+        for database in layer:
+            db_files.update(database.get_all_files())
 
     # loop until there is nothing more to resolve
     # we first get the files directly included by the compilation database
@@ -259,17 +260,18 @@ def make_headerdb(databases):
     while True:
         # mapping of <header normalized absolute path> -> _Data
         db_update = {}
-        for i, database in enumerate(databases):
-            _make_headerdb1(database.get_all_compile_commands(), db_files, i,
-                            db_update)
+        for layer in layers:
+            for db_idx, database in enumerate(layer):
+                _make_headerdb1(database.get_all_compile_commands(), db_files,
+                                db_idx, db_update)
         if not db_update:
             break
-        databases = [
+        layers = [[
             InMemoryCompilationDatabase() for _ in range(databases_len)
-        ]
+        ]]
         for k, v in db_update.items():
             db_files.add(k)
-            for db_list in (databases, complementary_databases):
+            for db_list in (layers[0], complementary_databases):
                 db_list[v.db_idx].compile_commands.append(v.compile_command)
     return complementary_databases
 
@@ -277,5 +279,5 @@ def make_headerdb(databases):
 class Complementer(ComplementerInterface):
     name = 'headerdb'
 
-    def complement(self, databases):
-        return make_headerdb(databases)
+    def complement(self, layers):
+        return make_headerdb(layers)

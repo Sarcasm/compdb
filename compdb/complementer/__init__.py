@@ -12,8 +12,8 @@ class ComplementerInterface(object):
         """A short name of the form [a-z]+(_[a-z]+)*."""
         raise compdb.NotImplementedError
 
-    def complement(self, databases):
-        """Compute the complements of a multiple databases.
+    def complement(self, layers):
+        """Compute the complements of multiple layers of databases.
 
         This method should provide compile commands of files not present in the
         compilations databases but that are part of the same project.
