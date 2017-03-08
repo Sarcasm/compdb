@@ -6,7 +6,7 @@ import itertools
 import os
 
 import compdb
-from compdb.models import ProbeError
+from compdb.models import (CompilationDatabaseInterface, ProbeError)
 from compdb.utils import (suppress, re_fullmatch, empty_iterator_wrap)
 from compdb.db.json import (JSONCompilationDatabase, compile_commands_to_json)
 from compdb.db.memory import InMemoryCompilationDatabase
@@ -102,7 +102,13 @@ class CompilationDatabase(object):
                 yield compdb_cls.probe_directory(directory)
                 break
         else:
-            raise ProbeError(directory)
+            # no compilation database found,
+            # calling the interface's probe_directory() function
+            # should raise a good probe error
+            CompilationDatabaseInterface.probe_directory(directory)
+            # make sure to raise something,
+            # in case probe_directory() no longer asserts
+            raise AssertionError
         for complementer in self._complementers:
             cache_path = os.path.join(directory, complementer.cache_filename)
             if os.path.exists(cache_path):
@@ -136,7 +142,8 @@ class CompilationDatabase(object):
             with suppress(ProbeError):
                 databases.append(self._probe_dir(directory))
         if not databases:
-            raise ProbeError(path_pattern)
+            raise ProbeError(
+                "{}: no compilation databases found".format(path_pattern))
         return databases
 
     def add_directory_pattern(self, path_pattern):

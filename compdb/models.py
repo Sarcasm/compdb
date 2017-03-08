@@ -42,7 +42,8 @@ class CompilationDatabaseInterface(object):
         If the directory does not contain a database,
         a ProbeError should be raised (the default action if not overriden).
         """
-        raise ProbeError(directory)
+        raise ProbeError(
+            "{}: compilation databases not found".format(directory))
 
     def get_compile_commands(self, filepath):
         """Get the compile commands for the given file.
