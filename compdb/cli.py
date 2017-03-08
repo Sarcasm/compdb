@@ -67,7 +67,7 @@ class CommandBase(RegisteredCommand):
     def make_unpopulated_database(self):
         db = CompilationDatabase()
         for database_cls in self.get_database_classes():
-            db.register_db(database_cls)
+            db.register_backend(database_cls)
         for complementer in self.get_complementers():
             db.add_complementer(complementer)
         return db

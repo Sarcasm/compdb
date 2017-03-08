@@ -78,7 +78,7 @@ class CompilationDatabase(object):
         self._directories = []
         self.raise_on_missing_cache = True
 
-    def register_db(self, db_cls):
+    def register_backend(self, db_cls):
         if db_cls not in self._registry:
             self._registry.append(db_cls)
 
