@@ -277,7 +277,5 @@ def make_headerdb(layers):
 
 
 class Complementer(ComplementerInterface):
-    name = 'headerdb'
-
     def complement(self, layers):
         return make_headerdb(layers)

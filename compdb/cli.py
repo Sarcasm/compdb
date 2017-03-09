@@ -43,11 +43,26 @@ else:
     exec('class RegisteredCommand(metaclass=CommandRegistry): pass')
 
 
+class Environment(object):
+    def __init__(self):
+        self.__complementers = {}
+
+    def register_complementer(self, name, cls):
+        self.__complementers[name] = cls
+
+    def get_complementer(self, name):
+        return self.__complementers[name]
+
+
 class CommandBase(RegisteredCommand):
     def __init__(self):
+        self.env = None
         self.config = None
         self.args = None
         self._database = None
+
+    def set_env(self, env):
+        self.env = env
 
     def set_config(self, config):
         self.config = config
@@ -58,18 +73,13 @@ class CommandBase(RegisteredCommand):
     def get_database_classes(self):
         return [compdb.db.json.JSONCompilationDatabase]
 
-    def get_complementers(self):
-        complementers = []
-        if self.config.compdb.headerdb:
-            complementers.append(compdb.complementer.headerdb.Complementer())
-        return complementers
-
     def make_unpopulated_database(self):
         db = CompilationDatabase()
         for database_cls in self.get_database_classes():
             db.register_backend(database_cls)
-        for complementer in self.get_complementers():
-            db.add_complementer(complementer)
+        for complementer_name in (self.config.compdb.complementers or []):
+            complementer_cls = self.env.get_complementer(complementer_name)
+            db.add_complementer(complementer_name, complementer_cls())
         return db
 
     def populate_database(self, database):
@@ -245,10 +255,10 @@ class UpdateCommand(CommandBase):
     help_short = 'update complementary databases cache'
 
     def execute(self):
-        if not self.config.compdb.headerdb:
+        if not self.config.compdb.complementers:
             print(
-                'error: nothing to update: '
-                'compdb.headerdb is not enabled in config',
+                'error: no complementers configured '
+                '(config compdb.complementers)',
                 file=sys.stderr)
             sys.exit(1)
 
@@ -472,6 +482,11 @@ def _wrap_paragraphs(text, max_width=None):
         [textwrap.fill(p.strip(), width=paragraph_width) for p in paragraphs])
 
 
+def setup(env):
+    env.register_complementer('headerdb',
+                              compdb.complementer.headerdb.Complementer)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description='{}.'.format(__desc__),
@@ -501,11 +516,13 @@ def main(argv=None):
     # forcing it to true limit the differences between the two
     subparsers.required = True
 
+    env = Environment()
+    setup(env)
+
     config_schema = compdb.config.ConfigSchema()
     compdb_schema = config_schema.get_section_schema('compdb')
     compdb_schema.register_glob_list('build-dir', 'the build directories')
-    compdb_schema.register_bool('headerdb',
-                                'whether or not headerdb should be used')
+    compdb_schema.register_string_list('complementers', 'complementers to use')
     for command_cls in RegisteredCommand:
         command_description = command_cls.help_short.capitalize()
         if not command_description.endswith('.'):
@@ -551,6 +568,7 @@ def main(argv=None):
         config.set_overrides(config_overrides)
 
     command = args.cls()
+    command.set_env(env)
     command.set_config(config)
     command.set_args(args)
 

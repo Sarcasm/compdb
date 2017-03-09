@@ -51,8 +51,7 @@ def _chain_get_all_compile_commands(databases):
 
 
 class _ComplementerWrapper(object):
-    def __init__(self, complementer):
-        name = complementer.name
+    def __init__(self, name, complementer):
         if not self._valid_name(name):
             raise ComplementerNameError(complementer)
         self.name = name
@@ -82,8 +81,8 @@ class CompilationDatabase(object):
         if db_cls not in self._registry:
             self._registry.append(db_cls)
 
-    def add_complementer(self, complementer):
-        complementer = _ComplementerWrapper(complementer)
+    def add_complementer(self, name, complementer):
+        complementer = _ComplementerWrapper(name, complementer)
         self._complementers.append(complementer)
         self._layers.append([])
 
