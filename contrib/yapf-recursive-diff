@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Helper script to work around yapf's lack of sensible exit code:
+# - https://github.com/google/yapf/issues/325
+# - https://github.com/google/yapf/issues/306
+
+set -o errexit
+
+echo "Running: yapf --exclude=tests/regression/headerdb --diff --recursive" "$@"
+
+temp=$(mktemp --tmpdir yapf-diff.XXXXXX)
+yapf --exclude=tests/regression/headerdb --diff --recursive "$@" | tee "$temp"
+
+if [[ -s "$temp" ]]; then
+    exit 1
+fi
