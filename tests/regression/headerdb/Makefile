@@ -56,12 +56,13 @@ archive_path = $(DOWNLOAD_DIR)/$(call archive_name,$1)
 archive_noext = $(basename $(subst .tar.,.tar,$(call archive_name,$1)))
 source_path = $(SOURCE_DIR)/$(call archive_noext,$1)
 build_path = $(BUILD_DIR)/$(call archive_noext,$1)
-headerdb_path = $(call build_path,$1)/headerdb
 
 define USAGE
 Usage: $(MAKE) [all|project]
 
 Test headerdb on a handful of open source projects.
+
+Available projects: $(PROJECTS)
 
 Targets:
   all       Download, configure, generate compilation database, generate
@@ -112,16 +113,14 @@ $(BUILD_DIR) $(DOWNLOAD_DIR) $(SOURCE_DIR) $(STAMP_DIR):
 	@mkdir -p $@
 
 $(STAMP_DIR)/%.verify: $(STAMP_DIR)/%.headerdb
-	$(COMPDB) -p $(call headerdb_path,$*) check-db \
-		-g header \
+	$(COMPDB) -p $(call build_path,$*) -c compdb.complementers=headerdb check-db -g header \
 		$(foreach SUPP,$($*_SUPPRESSIONS),\
 			--suppressions $(call abbreviate_path,$(SUPP))) \
 		$(call source_path,$*)
 	@touch $@
 
 $(STAMP_DIR)/%.headerdb: $(STAMP_DIR)/%.configure
-	@mkdir -p $(call headerdb_path,$*)
-	$(COMPDB) -p $(call build_path,$*) headerdb > $(call headerdb_path,$*)/compile_commands.json
+	$(COMPDB) -p $(call build_path,$*) -c compdb.complementers=headerdb update
 	@touch $@
 
 $(STAMP_DIR)/%.configure: $(STAMP_DIR)/%.source

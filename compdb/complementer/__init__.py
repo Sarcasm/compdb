@@ -7,11 +7,6 @@ class ComplementerInterface(object):
     .. seealso:: complement()
     """
 
-    @property
-    def name(self):
-        """A short name of the form [a-z]+(_[a-z]+)*."""
-        raise compdb.NotImplementedError
-
     def complement(self, layers):
         """Compute the complements of multiple layers of databases.
 

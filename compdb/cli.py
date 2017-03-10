@@ -11,8 +11,7 @@ import compdb.db.json
 import compdb.complementer.headerdb
 from compdb.__about__ import (__desc__, __prog__, __version__)
 from compdb import (filelist, utils)
-from compdb.db.json import (compile_commands_to_json,
-                            JSONCompileCommandSerializer)
+from compdb.db.json import JSONCompileCommandSerializer
 from compdb.core import CompilationDatabase
 
 
@@ -275,23 +274,6 @@ class UpdateCommand(CommandBase):
                 print("  OUT {file}".format(**update))
             else:
                 print("unsupported: {}: {}".format(state, update))
-
-
-class HeaderDbCommand(CommandBase):
-    name = 'headerdb'
-    help_short = 'generate header compilation database from compile command(s)'
-    help_detail = """
-    Generate a compilation database on the standard output.
-    This compilation database is a guess of compile options.
-
-    Exit with status 1 if no compilation database is found.
-    """
-
-    def execute(self):
-        database = self.make_database()
-        headerdb = compdb.complementer.headerdb.make_headerdb([[database]])[0]
-        compile_commands_to_json(headerdb.get_all_compile_commands(),
-                                 utils.stdout_unicode_writer())
 
 
 def _get_suppressions_patterns_from_file(path):
