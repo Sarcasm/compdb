@@ -44,17 +44,12 @@ _compdb-config-get() {
 
 (( $+functions[_compdb-config] )) ||
 _compdb-config() {
-  local -a base_opts
-  base_opts=(
-    '(- :)'{-h,--help}'[show help message and exit]'
-  )
-
   local curcontext="$curcontext" state line
   typeset -A opt_args
   _arguments -C -S : \
-             "${base_opts[@]}" \
+             '(- :)'{-h,--help}'[show help message and exit]' \
              '(-): :->command' \
-             '(-)*:: :->option-or-argument'
+             '(-)*:: :->option-or-argument' && return
 
   case $state in
     (command)
@@ -85,11 +80,32 @@ _compdb-config() {
   esac
 }
 
-(( $+functions[_compdb-find] )) ||
-_compdb-find() {
+(( $+functions[_compdb-list] )) ||
+_compdb-list() {
   _arguments \
     '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-1 --unique)'{-1,--unique}'[restrict results to a single entry per file]' \
     '(-):source file:_files -g \*.\(c\|h\|cc\|hh\|cpp\|hpp\|cxx\|hxx\|c\+\+\|h\+\+\)'
+}
+
+(( $+functions[_compdb-scan-files] )) ||
+_compdb-scan-files() {
+  _arguments \
+    '(- :)'{-h,--help}'[show help message and exit]' \
+    '(-g --groups)'{-g,--groups=}'[restrict search to files of the groups]: :_values -s , "group(s)" header source' \
+    '*--suppressions-file[add suppress patterns from file]:file:_files -g \*.supp' \
+    '*--suppress[ignore files matching the given pattern]:pattern:' \
+    '(-):path:_files -/'
+}
+
+(( $+functions[_compdb-check] )) ||
+_compdb-check() {
+  _compdb-scan-files
+}
+
+(( $+functions[_compdb-update] )) ||
+_compdb-update() {
+  _arguments '(- :)'{-h,--help}'[show help message and exit]'
 }
 
 (( $+functions[__compdb_commands] )) ||
@@ -97,14 +113,12 @@ _compdb_commands() {
   local -a commands
 
   commands=(
-    check-db:"report files absent from the compilation database"
+    check:"report files absent from the compilation database"
     config:"get directory and global configuration options"
-    dump:"dump the compilation database(s)"
-    find:"find compile command(s) for a file"
-    headerdb:"generate header compilation database from compile command(s)"
     help:"display this help"
+    list:"list database entries"
     scan-files:"scan directory for source files"
-    update:"update complementary databases cache"
+    update:"update or update complementary databases"
     version:"display this version of compdb"
   )
 
@@ -115,7 +129,7 @@ _compdb() {
   local -a base_opts
   base_opts=(
     '(- :)'{-h,--help}'[show help message and exit]'
-    # TODO: completion for 'section.option=value'
+    # TODO: smart completion of -c argument: section.option=value
     '*-c[set value of configuration variable NAME for this invocation]:key:'
     '*-p[build path]:build directory:_files -/'
   )
@@ -125,7 +139,7 @@ _compdb() {
   _arguments -C -S : \
              "${base_opts[@]}" \
              '(-): :_compdb_commands' \
-             '(-)*:: :->option-or-argument'
+             '(-)*:: :->option-or-argument' && return
 
   # complete <command> arguments
   # if a function exists _compdb-<command> call it,

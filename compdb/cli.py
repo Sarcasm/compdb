@@ -251,7 +251,7 @@ class ListCommand(CommandBase):
 
 class UpdateCommand(CommandBase):
     name = 'update'
-    help_short = 'update complementary databases cache'
+    help_short = 'update or create complementary databases'
 
     def execute(self):
         if not self.config.compdb.complementers:
