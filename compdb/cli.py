@@ -11,7 +11,8 @@ import compdb.db.json
 import compdb.complementer.headerdb
 from compdb.__about__ import (__desc__, __prog__, __version__)
 from compdb import (filelist, utils)
-from compdb.db.json import compile_commands_to_json
+from compdb.db.json import (compile_commands_to_json,
+                            JSONCompileCommandSerializer)
 from compdb.core import CompilationDatabase
 
 
@@ -205,20 +206,9 @@ class ConfigCommand(CommandBase):
         self.config.get_effective_configuration().write(sys.stdout)
 
 
-class DumpCommand(CommandBase):
-    name = 'dump'
-    help_short = 'dump the compilation database(s)'
-
-    def execute(self):
-        compile_commands_to_json(
-            self.make_database().get_all_compile_commands(),
-            utils.stdout_unicode_writer())
-
-
-class FindCommand(CommandBase):
-    name = 'find'
-    help_short = 'find compile command(s) for a file'
-    help_detail = 'Exit with status 1 if no compile command is found.'
+class ListCommand(CommandBase):
+    name = 'list'
+    help_short = 'list database entries'
 
     @classmethod
     def options(cls, parser):
@@ -226,28 +216,38 @@ class FindCommand(CommandBase):
             '-1',
             '--unique',
             action='store_true',
-            help='restrict results to a single entry per specified files')
+            help='restrict results to a single entry per file')
         parser.add_argument(
-            'files',
-            metavar='FILE',
-            help="file to search for in the compilation database",
-            nargs='+')
+            'files', nargs='*', help='restrict results to a list of files')
 
     def execute(self):
-        results = []
-        for file in self.args.files:
-            compile_commands = self.make_database().get_compile_commands(file)
-            try:
-                first = next(compile_commands)
-            except StopIteration:
-                print(
-                    'error: no compile commands for {}'.format(file),
-                    file=sys.stderr)
-                sys.exit(1)
-            results.append(first)
-            if not self.args.unique:
-                results.extend(compile_commands)
-        compile_commands_to_json(results, utils.stdout_unicode_writer())
+        database = self.make_database()
+        has_missing_files = False
+        with JSONCompileCommandSerializer(
+                utils.stdout_unicode_writer()) as serializer:
+            if not self.args.files:
+                serialized_files = set()
+                for compile_command in database.get_all_compile_commands():
+                    if self.args.unique:
+                        normpath = compile_command.normfile
+                        if normpath in serialized_files:
+                            continue
+                        serialized_files.add(normpath)
+                    serializer.serialize(compile_command)
+            for file in self.args.files:
+                has_compile_command = False
+                for compile_command in database.get_compile_commands(file):
+                    serializer.serialize(compile_command)
+                    has_compile_command = True
+                    if self.args.unique:
+                        break
+                if not has_compile_command:
+                    print(
+                        'error: {}: no such entry'.format(file),
+                        file=sys.stderr)
+                    has_missing_files = True
+        if has_missing_files:
+            sys.exit(1)
 
 
 class UpdateCommand(CommandBase):

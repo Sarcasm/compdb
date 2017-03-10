@@ -51,8 +51,7 @@ def re_fullmatch(regex, string, flags=0):
 # conditions:
 # - python 2 & 3, output to terminal
 # - python 2 & 3, output to a pipe or shell redirection
-# - python 2 & 3, output to a StringIO (this one does not actually use UTF-8
-#   encoding)
+# - python 2 & 3, output to a StringIO
 #
 # When using python 2, if the program output is redirected to a pipe or file,
 # the output encoding may be set to 'ascii',
@@ -61,11 +60,6 @@ def re_fullmatch(regex, string, flags=0):
 # but explicit utf-8 encoding seems a sensible choice to output data to be
 # consumed by other programs (e.g: JSON).
 def stdout_unicode_writer():
-    """Get unicode writer to output UTF-8 encoded data.
-
-    To be used for JSON dump and alike.
-
-    """
     stream = sys.stdout
     if isinstance(stream, StringIO):
         return stream

@@ -82,6 +82,27 @@ def compile_command_to_json(compile_command):
         str_to_json(compile_command.file))
 
 
+class JSONCompileCommandSerializer(object):
+    def __init__(self, fp):
+        self.fp = fp
+        self.__count = 0
+
+    def __enter__(self):
+        self.fp.write('[\n')
+        return self
+
+    def serialize(self, compile_command):
+        if self.__count != 0:
+            self.fp.write(',\n\n')
+        self.fp.write(compile_command_to_json(compile_command))
+        self.__count += 1
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.__count != 0:
+            self.fp.write('\n')
+        self.fp.write(']\n')
+
+
 def compile_commands_to_json(compile_commands, fp):
     """
     Dump Json.
@@ -92,11 +113,6 @@ def compile_commands_to_json(compile_commands, fp):
     fp
         A file-like object, JSON is written to this element.
     """
-    fp.write('[\n')
-    for i, command in enumerate(compile_commands):
-        if i != 0:
-            fp.write(',\n\n')
-        fp.write(compile_command_to_json(command))
-    if compile_commands:
-        fp.write('\n')
-    fp.write(']\n')
+    with JSONCompileCommandSerializer(fp) as serializer:
+        for compile_command in compile_commands:
+            serializer.serialize(compile_command)
