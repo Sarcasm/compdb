@@ -354,8 +354,8 @@ class ScanFilesCommand(CommandBase):
             print(path)
 
 
-class CheckDbCommand(CommandBase):
-    name = 'check-db'
+class CheckCommand(CommandBase):
+    name = 'check'
     help_short = 'report files absent from the compilation database(s)'
     help_detail = """
     Report files that are found in the workspace

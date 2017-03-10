@@ -113,7 +113,7 @@ $(BUILD_DIR) $(DOWNLOAD_DIR) $(SOURCE_DIR) $(STAMP_DIR):
 	@mkdir -p $@
 
 $(STAMP_DIR)/%.verify: $(STAMP_DIR)/%.headerdb
-	$(COMPDB) -p $(call build_path,$*) -c compdb.complementers=headerdb check-db -g header \
+	$(COMPDB) -p $(call build_path,$*) -c compdb.complementers=headerdb check -g header \
 		$(foreach SUPP,$($*_SUPPRESSIONS),\
 			--suppressions $(call abbreviate_path,$(SUPP))) \
 		$(call source_path,$*)
