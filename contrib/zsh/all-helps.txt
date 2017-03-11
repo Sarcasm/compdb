@@ -1,0 +1,140 @@
+usage: compdb [-h] [-c NAME[=VALUE]] [-p BUILD-DIR] <command> ...
+
+The compilation database Swiss army knife.
+
+optional arguments:
+  -h, --help       show this help message and exit
+  -c NAME[=VALUE]  set value of configuration variable NAME for this
+                   invocation
+  -p BUILD-DIR     build path(s)
+
+available commands:
+    check          report files absent from the compilation database(s)
+    config         get directory and global configuration options
+    help           display this help
+    list           list database entries
+    scan-files     scan directory for source files
+    update         update or create complementary databases
+    version        display this version of compdb
+
+
+# check
+
+usage: compdb check [-h] [--suppress pattern] [--suppressions-file file]
+                    [-g GROUPS]
+                    [path [path ...]]
+
+positional arguments:
+  path                  search path(s) (default: ['.'])
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --suppress pattern    ignore files matching the given pattern
+  --suppressions-file file
+                        add suppress patterns from file
+  -g GROUPS, --groups GROUPS
+                        restrict search to files of the groups [source,header]
+
+description:
+Report files absent from the compilation database(s).
+
+Report files that are found in the workspace but not in the compilation
+database. And files that are in the compilation database but not found in the
+workspace.
+
+Exit with status 1 if some file in the workspace aren't found in the
+compilation database.
+
+
+# config
+
+usage: compdb config [-h] <subcommand> ...
+
+optional arguments:
+  -h, --help        show this help message and exit
+
+available subcommands:
+    print-user-conf
+                    print the user configuration path
+    print-local-conf
+                    print the project local configuration
+    list            list all the configuration keys
+    dump            dump effective configuration
+    get             get configuration variable effective value
+
+description:
+Get directory and global configuration options.
+
+
+# help
+
+usage: compdb help [-h]
+
+optional arguments:
+  -h, --help  show this help message and exit
+
+description:
+Display this help.
+
+
+# list
+
+usage: compdb list [-h] [-1] [files [files ...]]
+
+positional arguments:
+  files         restrict results to a list of files
+
+optional arguments:
+  -h, --help    show this help message and exit
+  -1, --unique  restrict results to a single entry per file
+
+description:
+List database entries.
+
+
+# scan-files
+
+usage: compdb scan-files [-h] [--suppress pattern] [--suppressions-file file]
+                         [-g GROUPS]
+                         [path [path ...]]
+
+positional arguments:
+  path                  search path(s) (default: ['.'])
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --suppress pattern    ignore files matching the given pattern
+  --suppressions-file file
+                        add suppress patterns from file
+  -g GROUPS, --groups GROUPS
+                        restrict search to files of the groups [source,header]
+
+description:
+Scan directory for source files.
+
+Lookup given paths for source files.
+
+Source files includes C, C++ files, headers, and more.
+
+
+# update
+
+usage: compdb update [-h]
+
+optional arguments:
+  -h, --help  show this help message and exit
+
+description:
+Update or create complementary databases.
+
+
+# version
+
+usage: compdb version [-h] [--short]
+
+optional arguments:
+  -h, --help  show this help message and exit
+  --short     machine readable version
+
+description:
+Display this version of compdb.

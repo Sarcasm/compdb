@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -o errexit
+
+cd $(dirname "${BASH_SOURCE[0]}")
+
+compdb --help > all-helps.txt.new
+
+compdb help | grep "^  " | while read command descr; do
+  echo
+  echo
+  echo "# $command"
+  echo
+  compdb $command --help
+done >> all-helps.txt.new
+
+if ! diff -u all-helps.txt{,.new}; then
+    cat <<EOF
+
+------------------------------------------------
+
+A change in the CLI interface has been detected,
+consider updating the following file:
+
+    functions/_compdb
+
+To remove this notice, update 'all-helps.output':
+
+    cp all-helps.output.new all-helps.output
+EOF
+    exit 1
+fi
+
+rm all-helps.txt.new
+
+echo "Up-to-date!"
