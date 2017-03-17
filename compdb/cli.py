@@ -219,31 +219,29 @@ class ListCommand(CommandBase):
         parser.add_argument(
             'files', nargs='*', help='restrict results to a list of files')
 
-    def execute(self):
+    def _gen_results(self):
         database = self.make_database()
+        for file in self.args.files or [None]:
+            if file:
+                compile_commands = database.get_compile_commands(
+                    file, unique=self.args.unique)
+            else:
+                compile_commands = database.get_all_compile_commands(
+                    unique=self.args.unique)
+            yield (file, compile_commands)
+
+    def execute(self):
         has_missing_files = False
         with JSONCompileCommandSerializer(
                 utils.stdout_unicode_writer()) as serializer:
-            if not self.args.files:
-                serialized_files = set()
-                for compile_command in database.get_all_compile_commands():
-                    if self.args.unique:
-                        normpath = compile_command.normfile
-                        if normpath in serialized_files:
-                            continue
-                        serialized_files.add(normpath)
-                    serializer.serialize(compile_command)
-            for file in self.args.files:
+            for file, compile_commands in self._gen_results():
                 has_compile_command = False
-                for compile_command in database.get_compile_commands(file):
+                for compile_command in compile_commands:
                     serializer.serialize(compile_command)
                     has_compile_command = True
-                    if self.args.unique:
-                        break
-                if not has_compile_command:
-                    print(
-                        'error: {}: no such entry'.format(file),
-                        file=sys.stderr)
+                if file and not has_compile_command:
+                    print('error: {}: no such entry'.format(file),
+                          file=sys.stderr)
                     has_missing_files = True
         if has_missing_files:
             sys.exit(1)

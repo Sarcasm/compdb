@@ -172,7 +172,15 @@ class CompilationDatabase(object):
                     compile_commands_to_json(db.get_all_compile_commands(), f)
             yield ('end', {'complementer': complementer.name})
 
-    def get_compile_commands(self, filepath):
+    def get_compile_commands(self, filepath, **kwargs):
+        def uniquify(compile_commands):
+            for compile_command in compile_commands:
+                yield compile_command
+                break
+
+        for key in kwargs:
+            assert key in ['unique'], "invalid named argument: {}".format(key)
+        ret = iter(())
         for layer in self._layers:
             is_empty, compile_commands = empty_iterator_wrap(
                 _chain_get_compile_commands(layer, filepath))
@@ -180,13 +188,30 @@ class CompilationDatabase(object):
             # from the main or precedings databases.
             # This allow us to early exit as soon as a match is found.
             if not is_empty:
-                return compile_commands
-        return iter(())
+                ret = compile_commands
+                break
+        if kwargs.get('unique', False):
+            ret = uniquify(ret)
+        return ret
 
     def get_all_files(self):
         return itertools.chain.from_iterable((_chain_get_all_files(layer)
                                               for layer in self._layers))
 
-    def get_all_compile_commands(self):
-        return itertools.chain.from_iterable(
+    def get_all_compile_commands(self, **kwargs):
+        def uniquify(compile_commands):
+            serialized_files = set()
+            for compile_command in compile_commands:
+                normpath = compile_command.normfile
+                if normpath in serialized_files:
+                    continue
+                serialized_files.add(normpath)
+                yield compile_command
+
+        for key in kwargs:
+            assert key in ['unique'], "invalid named argument: {}".format(key)
+        ret = itertools.chain.from_iterable(
             (_chain_get_all_compile_commands(layer) for layer in self._layers))
+        if kwargs.get('unique', False):
+            ret = uniquify(ret)
+        return ret
