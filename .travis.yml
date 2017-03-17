@@ -18,9 +18,13 @@ matrix:
     - python: 3.6
       env: TOXENV=lint,docs
     - python: 3.6
+      # requirements.txt installs the 'compdb' and its dependencies,
+      # the script depends on it
       install: pip install -r requirements.txt
       script: ./contrib/zsh/check-all-helps
 
-install: pip install tox
+install: pip install tox wheel
 
-script: tox
+script:
+  - tox
+  - python setup.py sdist bdist_wheel
