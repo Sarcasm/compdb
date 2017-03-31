@@ -18,8 +18,8 @@ matrix:
     - python: 3.6
       env: TOXENV=lint,docs
     - python: 3.6
-      # requirements.txt installs the 'compdb' and its dependencies,
-      # the script depends on it
+      # requirements.txt installs compdb and its dependencies,
+      # the ZSH script depends on compdb
       install: pip install -r requirements.txt
       script: ./contrib/zsh/check-all-helps
 

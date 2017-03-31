@@ -240,8 +240,9 @@ class ListCommand(CommandBase):
                     serializer.serialize(compile_command)
                     has_compile_command = True
                 if file and not has_compile_command:
-                    print('error: {}: no such entry'.format(file),
-                          file=sys.stderr)
+                    print(
+                        'error: {}: no such entry'.format(file),
+                        file=sys.stderr)
                     has_missing_files = True
         if has_missing_files:
             sys.exit(1)
