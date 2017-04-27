@@ -44,7 +44,7 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
-        "Programming Language :: Python :: Implementation :: PyPy"
+        "Programming Language :: Python :: Implementation :: PyPy",
     ],
     keywords=['Clang', 'compilation-database', 'compdb'],
     packages=find_packages(include=['compdb', 'compdb.*']),
@@ -55,5 +55,4 @@ setup(
         ],
     },
     python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*',
-    install_requires=dependencies,
-)
+    install_requires=dependencies)
