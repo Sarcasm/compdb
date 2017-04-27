@@ -1,12 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from codecs import open
-from os import path
-from setuptools import setup, find_packages
+import setuptools
 import sys
 
+from codecs import open
+from distutils.version import LooseVersion
+from os import path
+from setuptools import setup, find_packages
+
 local_path = path.abspath(path.dirname(__file__))
+
+# find_packages()'s 'include' parameter has been introduced in setuptools 3.3.
+#
+# Ubuntu 14:04 comes with 3.3 for the system wide installation,
+# but when using virtualenv the setuptools version is 2.2.
+# The solution is to upgrade setuptools in the virtualenv.
+if LooseVersion(setuptools.__version__) < LooseVersion('3.3'):
+    print("setuptools version:", str(LooseVersion(setuptools.__version__)))
+    print("to upgrade with pip, type: pip install -U setuptools")
+    raise AssertionError("compdb requires setuptools 3.3 higher")
 
 with open(path.join(local_path, 'README.rst'), encoding='utf-8') as f:
     long_desc = f.read()
@@ -15,13 +28,27 @@ about = {}
 with open(path.join(local_path, "compdb", "__about__.py")) as f:
     exec(f.read(), about)
 
-dependencies = []
+install_requires = []
+extras_require = {}
 
-if sys.version_info[0] < 3:
-    # Would be nicer in 'extra_require' with an environment marker (PEP 496),
-    # but this requires a more recent version of setuptools
-    # than provided by Ubuntu 14.04.
-    dependencies.append('configparser')
+# Depending on the setuptools version,
+# fill in install_requires or extras_require.
+#
+# The ideas comes from the following article:
+# - https://hynek.me/articles/conditional-python-dependencies/
+#
+# This handles Ubuntu 14.04, which comes with setuptools 3.3.
+# But not everything is handled, a more recent version of setuptools
+# is still required to support bdist_wheel.
+if LooseVersion(setuptools.__version__) < LooseVersion('18'):
+    if "bdist_wheel" in sys.argv:
+        print("setuptools version:", str(LooseVersion(setuptools.__version__)))
+        print("to upgrade with pip, type: pip install -U setuptools")
+        raise AssertionError("setuptools >= 18 required for wheels")
+    if sys.version_info[0] < 3:
+        install_requires.append('configparser')
+else:  # setuptools >= 18
+    extras_require[":python_version<'3.0'"] = ['configparser']
 
 setup(
     name=about['__prog__'],
@@ -55,4 +82,5 @@ setup(
         ],
     },
     python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*',
-    install_requires=dependencies)
+    install_requires=install_requires,
+    extras_require=extras_require)

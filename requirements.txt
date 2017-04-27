@@ -1,3 +1,2 @@
-# install the 'abstract' dependencies of setup.py
-# -- https://caremad.io/posts/2013/07/setup-vs-requirement/
--e .
+# Note: the use of environment marker requires pip >= 7.1.0
+configparser; python_version < '3.0'
