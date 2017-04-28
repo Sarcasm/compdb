@@ -27,4 +27,3 @@ install: pip install tox wheel
 
 script:
   - tox
-  - python setup.py sdist bdist_wheel
