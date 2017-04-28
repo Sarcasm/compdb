@@ -18,6 +18,8 @@ matrix:
     - python: 3.6
       env: TOXENV=lint,docs
     - python: 3.6
+      script: ./tests/integration/packaging-trusty.sh
+    - python: 3.6
       install: python setup.py install
       script: ./contrib/zsh/check-all-helps
 
