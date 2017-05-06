@@ -1,8 +1,11 @@
 #!/bin/bash
 
 # This script tests the packaging of compdb on Ubuntu Trusty.
-# It has been made to run on Travis CI and locally on Ubuntu 14.04,
-# or locally inside docker thanks to docker/ubuntu-trusty.sh.
+
+# It has been made to run on Travis CI and inside docker image of Ubuntu 14.04.
+# For the docker image, one can use docker/ubuntu-trusty.sh.
+# At this time it is not recommended to run this locally
+# because files are created in the user home directory.
 # The dependencies can be found in docker/ubuntu-trusty/Dockerfile.
 
 if [[ ! -f compdb/__init__.py ]]; then
@@ -12,6 +15,26 @@ fi
 
 set -o errexit
 set -o xtrace
+
+# Initial goal for this script was to run in a "pristine" Ubuntu Trusty,
+# with a stock installation of python,
+# unfortunately Travis CI uses isolated virtualenvs:
+# - https://docs.travis-ci.com/user/languages/python/#Travis-CI-Uses-Isolated-virtualenvs
+#
+# This means, one has to accomodate the 'pip install' commands
+# to not use the --user options when run under virtualenv.
+# Doing otherwise, triggers the following error:
+#     $ pip install --user .
+#     Can not perform a '--user' install. User site-packages are not visible in this virtualenv.
+#
+# virtualenv detection logic copied from pip:
+# - https://github.com/pypa/pip/blob/ccd75d4daf7753b6587cffbb1ba52e7dfa5e9915/pip/locations.py#L41-L51
+USER_OPTS=""
+if python -c 'import sys; sys.exit(hasattr(sys, "real_prefix"))' ||
+        python -c 'import sys; sys.exit(sys.prefix != getattr(sys, "base_prefix", sys.prefix))'
+then
+    USER_OPTS="--user"
+fi
 
 # First generate release files to ~/dist
 virtualenv .venv
@@ -25,13 +48,18 @@ rm -r .venv
 
 # Install from source
 mkdir ~/userbase
-PYTHONUSERBASE=~/userbase python setup.py install --user
-PYTHONUSERBASE=~/userbase PATH="$HOME/userbase/bin:$PATH" compdb version
+env PYTHONPATH=$(PYTHONUSERBASE=~/userbase python -m site --user-site) \
+    PYTHONUSERBASE=~/userbase \
+    python setup.py install --user
+env PYTHONPATH=$(PYTHONUSERBASE=~/userbase python -m site --user-site) \
+    PYTHONUSERBASE=~/userbase \
+    PATH="$HOME/userbase/bin:$PATH" \
+    compdb version
 rm -r ~/userbase
 
 # Install from source with pip
 mkdir ~/userbase
-PYTHONUSERBASE=~/userbase pip install --user .
+PYTHONUSERBASE=~/userbase pip install ${USER_OPTS} .
 PYTHONUSERBASE=~/userbase PATH="$HOME/userbase/bin:$PATH" compdb version
 rm -r ~/userbase
 
@@ -48,7 +76,7 @@ rm -r .venv
 
 # Wheel
 mkdir ~/userbase
-PYTHONUSERBASE=~/userbase pip install --user ~/dist/compdb-*.whl
+PYTHONUSERBASE=~/userbase pip install ${USER_OPTS} ~/dist/compdb-*.whl
 PYTHONUSERBASE=~/userbase PATH="$HOME/userbase/bin:$PATH" compdb version
 rm -r ~/userbase
 
@@ -66,7 +94,7 @@ rm -r .venv
 
 # pip install source distribution
 mkdir ~/userbase
-PYTHONUSERBASE=~/userbase pip install --user ~/dist/compdb-*.tar.gz
+PYTHONUSERBASE=~/userbase pip install ${USER_OPTS} ~/dist/compdb-*.tar.gz
 PYTHONUSERBASE=~/userbase PATH="$HOME/userbase/bin:$PATH" compdb version
 rm -r ~/userbase
 

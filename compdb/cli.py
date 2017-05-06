@@ -427,7 +427,7 @@ class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
 
 
 def term_columns():
-    columns = 80
+    columns = 0
 
     try:
         # can happens in tests, when we redirect sys.stdout to a StringIO
@@ -449,7 +449,9 @@ def term_columns():
                                 struct.pack('HHHH', 0, 0, 0, 0)))[1]
             except (ImportError, IOError):
                 pass
-    return columns
+    if columns > 0:
+        return columns
+    return 80
 
 
 def _wrap_paragraphs(text, max_width=None):
@@ -518,7 +520,8 @@ def main(argv=None):
 
         command_description = textwrap.dedent("""
         description:
-        """) + _wrap_paragraphs(command_description, 120)
+        """) + _wrap_paragraphs(
+            command_description, max_width=120)
 
         subparser = subparsers.add_parser(
             command_cls.name,
