@@ -23,7 +23,7 @@ matrix:
       install: python setup.py install
       script: ./contrib/zsh/check-all-helps
 
-install: pip install tox wheel
+install: pip install tox
 
 script:
   - tox
