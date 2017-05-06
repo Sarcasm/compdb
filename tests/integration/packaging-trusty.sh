@@ -30,7 +30,7 @@ set -o xtrace
 # virtualenv detection logic copied from pip:
 # - https://github.com/pypa/pip/blob/ccd75d4daf7753b6587cffbb1ba52e7dfa5e9915/pip/locations.py#L41-L51
 USER_OPTS=""
-if python -c 'import sys; sys.exit(hasattr(sys, "real_prefix"))' ||
+if python -c 'import sys; sys.exit(hasattr(sys, "real_prefix"))' &&
         python -c 'import sys; sys.exit(sys.prefix != getattr(sys, "base_prefix", sys.prefix))'
 then
     USER_OPTS="--user"
