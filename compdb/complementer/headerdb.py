@@ -3,7 +3,7 @@ from __future__ import print_function, unicode_literals, absolute_import
 import os
 import re
 
-from compdb.db.memory import InMemoryCompilationDatabase
+from compdb.backend.memory import InMemoryCompilationDatabase
 from compdb.complementer import ComplementerInterface
 from compdb.models import CompileCommand
 

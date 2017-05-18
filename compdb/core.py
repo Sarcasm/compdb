@@ -6,10 +6,11 @@ import itertools
 import os
 
 import compdb
+from compdb.backend.json import (JSONCompilationDatabase,
+                                 compile_commands_to_json)
+from compdb.backend.memory import InMemoryCompilationDatabase
 from compdb.models import (CompilationDatabaseInterface, ProbeError)
 from compdb.utils import (suppress, re_fullmatch, empty_iterator_wrap)
-from compdb.db.json import (JSONCompilationDatabase, compile_commands_to_json)
-from compdb.db.memory import InMemoryCompilationDatabase
 
 
 class ComplementerError(compdb.CompdbError):

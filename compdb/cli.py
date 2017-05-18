@@ -6,12 +6,12 @@ import os
 import sys
 import textwrap
 
+import compdb.backend.json
 import compdb.config
-import compdb.db.json
 import compdb.complementer.headerdb
 from compdb.__about__ import (__desc__, __prog__, __version__)
 from compdb import (filelist, utils)
-from compdb.db.json import JSONCompileCommandSerializer
+from compdb.backend.json import JSONCompileCommandSerializer
 from compdb.core import CompilationDatabase
 
 
@@ -71,7 +71,7 @@ class CommandBase(RegisteredCommand):
         self.args = args
 
     def get_database_classes(self):
-        return [compdb.db.json.JSONCompilationDatabase]
+        return [compdb.backend.json.JSONCompilationDatabase]
 
     def make_unpopulated_database(self):
         db = CompilationDatabase()

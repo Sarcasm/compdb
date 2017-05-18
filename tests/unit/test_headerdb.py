@@ -6,7 +6,7 @@ import operator
 import os
 import unittest
 
-from compdb.db.memory import InMemoryCompilationDatabase
+from compdb.backend.memory import InMemoryCompilationDatabase
 from compdb.complementer.headerdb import (
     Complementer,
     subword_split, )

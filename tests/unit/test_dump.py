@@ -7,7 +7,7 @@ try:
 except ImportError:
     from io import StringIO
 
-from compdb.db.json import (
+from compdb.backend.json import (
     command_to_json,
     compile_commands_to_json, )
 from compdb.models import CompileCommand
