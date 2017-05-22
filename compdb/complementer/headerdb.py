@@ -13,30 +13,30 @@ def sanitize_compile_options(compile_command):
     file_norm = compile_command.normfile
     adjusted = []
     i = 0
-    command = compile_command.command
-    while i < len(command):
+    arguments = compile_command.arguments
+    while i < len(arguments):
         # end of options, skip all positional arguments (source files)
-        if command[i] == "--":
+        if arguments[i] == "--":
             break
         # strip -c
-        if command[i] == "-c":
+        if arguments[i] == "-c":
             i += 1
             continue
         # strip -o <output-file> and -o<output-file>
-        if command[i].startswith("-o"):
-            if command[i] == "-o":
+        if arguments[i].startswith("-o"):
+            if arguments[i] == "-o":
                 i += 2
             else:
                 i += 1
             continue
         # skip input file
-        if command[i].endswith(filename):
+        if arguments[i].endswith(filename):
             arg_norm = os.path.normpath(
-                os.path.join(compile_command.directory, command[i]))
+                os.path.join(compile_command.directory, arguments[i]))
             if file_norm == arg_norm:
                 i += 1
                 continue
-        adjusted.append(command[i])
+        adjusted.append(arguments[i])
         i += 1
     return adjusted
 
@@ -58,7 +58,7 @@ def derive_compile_command(header_file, reference):
         directory=reference.directory,
         file=mimic_path_relativity(header_file, reference.file,
                                    reference.directory),
-        command=sanitize_compile_options(reference))
+        arguments=sanitize_compile_options(reference))
 
 
 def get_file_includes(path):
@@ -85,15 +85,15 @@ def get_file_includes(path):
 def extract_include_dirs(compile_command):
     header_search_path = []
     i = 0
-    command = sanitize_compile_options(compile_command)
-    while i < len(command):
+    arguments = sanitize_compile_options(compile_command)
+    while i < len(arguments):
         # -I <dir> and -I<dir>
-        if command[i].startswith("-I"):
-            if command[i] == "-I":
+        if arguments[i].startswith("-I"):
+            if arguments[i] == "-I":
                 i += 1
-                header_search_path.append(command[i])
+                header_search_path.append(arguments[i])
             else:
-                header_search_path.append(command[i][2:])
+                header_search_path.append(arguments[i][2:])
         i += 1
     return [
         os.path.join(compile_command.directory, p) for p in header_search_path

@@ -15,14 +15,14 @@ class ProbeError(LookupError, compdb.CompdbError):
 
 
 class CompileCommand:
-    def __init__(self, directory, file, command):
+    def __init__(self, directory, file, arguments):
         self.directory = directory
         self.file = file
-        self.command = command
+        self.arguments = arguments
 
     def __repr__(self):
-        return "{{directory: {},\nfile: {},\n command: ".format(
-            self.directory, self.file) + pprint.pformat(self.command) + "}\n\n"
+        return "{{directory: {},\nfile: {},\n arguments: {}}}\n\n".format(
+            self.directory, self.file, pprint.pformat(self.arguments))
 
     def __str__(self):
         return self.__repr__()

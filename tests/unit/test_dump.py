@@ -8,7 +8,7 @@ except ImportError:
     from io import StringIO
 
 from compdb.backend.json import (
-    command_to_json,
+    arguments_to_json,
     compile_commands_to_json, )
 from compdb.models import CompileCommand
 
@@ -20,7 +20,7 @@ from compdb.models import CompileCommand
 #
 # -- http://clang.llvm.org/docs/JSONCompilationDatabase.html
 
-COMMAND_TO_JSON_DATA = [
+ARGUMENTS_TO_JSON_DATA = [
     (['clang++'], r'"clang++"'),
     (['clang++', '-std=c++11'], r'"clang++ -std=c++11"'),
     (['clang++', '-DFOO=a b'], r'"clang++ \"-DFOO=a b\""'),
@@ -34,7 +34,7 @@ COMMAND_TO_JSON_DATA = [
 
 COMPILE_COMMANDS_TO_JSON_DATA = ([
     CompileCommand("/tmp", "foo.cpp", ["clang++"]),
-    CompileCommand("/tmp/bar", "bar.cpp", ["clang++", "-std=c++11"])
+    CompileCommand("/tmp/bar", "bar.cpp", ["clang++", "-std=c++11"]),
 ], r"""[
 {
   "directory": "/tmp",
@@ -52,9 +52,9 @@ COMPILE_COMMANDS_TO_JSON_DATA = ([
 
 
 class ToJSON(unittest.TestCase):
-    def test_command_to_json(self):
-        for tpl in COMMAND_TO_JSON_DATA:
-            self.assertEqual(tpl[1], command_to_json(tpl[0]))
+    def test_arguments_to_json(self):
+        for tpl in ARGUMENTS_TO_JSON_DATA:
+            self.assertEqual(tpl[1], arguments_to_json(tpl[0]))
 
     def test_compile_commands_to_json(self):
         output = StringIO()

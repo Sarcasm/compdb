@@ -50,18 +50,18 @@ class JSONCompilationDatabase(CompilationDatabaseInterface):
         return self.__data
 
 
-def command_to_json(commands):
+def arguments_to_json(arguments):
     cmd_line = '"'
-    for i, command in enumerate(commands):
+    for i, argument in enumerate(arguments):
         if i != 0:
             cmd_line += ' '
-        has_space = re.search(r"\s", command) is not None
+        has_space = re.search(r"\s", argument) is not None
         # reader now accepts simple quotes, so we need to support them here too
-        has_simple_quote = "'" in command
+        has_simple_quote = "'" in argument
         need_quoting = has_space or has_simple_quote
         if need_quoting:
             cmd_line += r'\"'
-        cmd_line += command.replace("\\", r'\\\\').replace(r'"', r'\\\"')
+        cmd_line += argument.replace("\\", r'\\\\').replace(r'"', r'\\\"')
         if need_quoting:
             cmd_line += r'\"'
     return cmd_line + '"'
@@ -78,7 +78,7 @@ def compile_command_to_json(compile_command):
   "file": {}
 }}'''.format(
         str_to_json(compile_command.directory),
-        command_to_json(compile_command.command),
+        arguments_to_json(compile_command.arguments),
         str_to_json(compile_command.file))
 
 

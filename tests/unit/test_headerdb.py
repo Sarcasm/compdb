@@ -46,12 +46,12 @@ class HeaderDB(unittest.TestCase):
     def complement(self, compile_commands):
         '''
         The output is returned sorted in the following order: file, directory,
-        command.
+        arguments.
         '''
         database = InMemoryCompilationDatabase(compile_commands)
         result = list(Complementer().complement([[database]])[0]
                       .get_all_compile_commands())
-        result.sort(key=operator.attrgetter('file', 'directory', 'command'))
+        result.sort(key=operator.attrgetter('file', 'directory', 'arguments'))
         return result
 
     def test_01(self):
@@ -59,132 +59,134 @@ class HeaderDB(unittest.TestCase):
         result = self.complement([
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-DA=1'],
+                arguments=['clang++', '-DA=1'],
                 file='a.cpp'),
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-DB=1'],
+                arguments=['clang++', '-DB=1'],
                 file='b.cpp'),
         ])
 
         self.assertEqual(1, len(result))
         self.assertEqual('a.hpp', result[0].file)
-        self.assertEqual(['clang++', '-DA=1'], result[0].command)
+        self.assertEqual(['clang++', '-DA=1'], result[0].arguments)
 
     def test_02(self):
         test_srcdir = self.srcdir('test_02')
         result = self.complement([
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-Iinclude', '-DA=1'],
+                arguments=['clang++', '-Iinclude', '-DA=1'],
                 file='src/a.cpp'),
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-Iinclude', '-DB=1'],
+                arguments=['clang++', '-Iinclude', '-DB=1'],
                 file='src/b.cpp'),
         ])
         self.assertEqual(2, len(result))
         self.assertEqual('include/a/a.hpp', result[0].file)
-        self.assertEqual(['clang++', '-Iinclude', '-DA=1'], result[0].command)
+        self.assertEqual(['clang++', '-Iinclude', '-DA=1'],
+                         result[0].arguments)
         self.assertEqual('include/b/b.hpp', result[1].file)
-        self.assertEqual(['clang++', '-Iinclude', '-DB=1'], result[1].command)
+        self.assertEqual(['clang++', '-Iinclude', '-DB=1'],
+                         result[1].arguments)
 
     def test_03(self):
         test_srcdir = self.srcdir('test_03')
         result = self.complement([
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-DAB=1'],
+                arguments=['clang++', '-DAB=1'],
                 file='a_b.cpp'),
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-DA=1'],
+                arguments=['clang++', '-DA=1'],
                 file='a.cpp'),
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-DB=1'],
+                arguments=['clang++', '-DB=1'],
                 file='b.cpp'),
         ])
         self.assertEqual(4, len(result))
         self.assertEqual('a.hpp', result[0].file)
-        self.assertEqual(['clang++', '-DA=1'], result[0].command)
+        self.assertEqual(['clang++', '-DA=1'], result[0].arguments)
         self.assertEqual('a_private.hpp', result[1].file)
-        self.assertEqual(['clang++', '-DA=1'], result[1].command)
+        self.assertEqual(['clang++', '-DA=1'], result[1].arguments)
         self.assertEqual('b.hpp', result[2].file)
-        self.assertEqual(['clang++', '-DB=1'], result[2].command)
+        self.assertEqual(['clang++', '-DB=1'], result[2].arguments)
         self.assertEqual('b_private.hpp', result[3].file)
-        self.assertEqual(['clang++', '-DB=1'], result[3].command)
+        self.assertEqual(['clang++', '-DB=1'], result[3].arguments)
 
     def test_04(self):
         test_srcdir = self.srcdir('test_04')
         result = self.complement([
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-DA=1'],
+                arguments=['clang++', '-DA=1'],
                 file='a.cpp'),
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-DB=1'],
+                arguments=['clang++', '-DB=1'],
                 file='b.cpp'),
         ])
         self.assertEqual(4, len(result))
         self.assertEqual('a.hpp', result[0].file)
-        self.assertEqual(['clang++', '-DA=1'], result[0].command)
+        self.assertEqual(['clang++', '-DA=1'], result[0].arguments)
         self.assertEqual('a.ipp', result[1].file)
-        self.assertEqual(['clang++', '-DA=1'], result[1].command)
+        self.assertEqual(['clang++', '-DA=1'], result[1].arguments)
         self.assertEqual('b.hpp', result[2].file)
-        self.assertEqual(['clang++', '-DB=1'], result[2].command)
+        self.assertEqual(['clang++', '-DB=1'], result[2].arguments)
         self.assertEqual('b.ipp', result[3].file)
-        self.assertEqual(['clang++', '-DB=1'], result[3].command)
+        self.assertEqual(['clang++', '-DB=1'], result[3].arguments)
 
     def test_05(self):
         test_srcdir = self.srcdir('test_05')
         result = self.complement([
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-DLATIN=1'],
+                arguments=['clang++', '-DLATIN=1'],
                 file='latin-1-á.cpp'),
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-DUTF=8'],
+                arguments=['clang++', '-DUTF=8'],
                 file='utf-8-á.cpp'),
         ])
         self.assertEqual(2, len(result))
         self.assertEqual('latin-1-á.hpp', result[0].file)
-        self.assertEqual(['clang++', '-DLATIN=1'], result[0].command)
+        self.assertEqual(['clang++', '-DLATIN=1'], result[0].arguments)
         self.assertEqual('utf-8-á.hpp', result[1].file)
-        self.assertEqual(['clang++', '-DUTF=8'], result[1].command)
+        self.assertEqual(['clang++', '-DUTF=8'], result[1].arguments)
 
     def test_06(self):
         test_srcdir = self.srcdir('test_06')
         result = self.complement([
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-Iinclude', '-Iinclude/a'],
+                arguments=['clang++', '-Iinclude', '-Iinclude/a'],
                 file='a.cpp'),
         ])
         self.assertEqual(1, len(result))
         self.assertEqual('include/a/a', result[0].file)
         self.assertEqual(['clang++', '-Iinclude', '-Iinclude/a'],
-                         result[0].command)
+                         result[0].arguments)
 
     def test_07(self):
         test_srcdir = self.srcdir('test_07')
         result = self.complement([
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-DA=1', '-I.'],
+                arguments=['clang++', '-DA=1', '-I.'],
                 file='a.cpp'),
             CompileCommand(
                 directory=test_srcdir,
-                command=['clang++', '-DB=1', '-I.'],
+                arguments=['clang++', '-DB=1', '-I.'],
                 file='b.cpp'),
         ])
         self.assertEqual(2, len(result))
         self.assertEqual('a.hpp', result[0].file)
-        self.assertEqual(['clang++', '-DB=1', '-I.'], result[0].command)
+        self.assertEqual(['clang++', '-DB=1', '-I.'], result[0].arguments)
         self.assertEqual('quoted_a.hpp', result[1].file)
-        self.assertEqual(['clang++', '-DB=1', '-I.'], result[1].command)
+        self.assertEqual(['clang++', '-DB=1', '-I.'], result[1].arguments)
 
 
 if __name__ == "__main__":
