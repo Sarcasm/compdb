@@ -20,4 +20,10 @@
     "file": "/tmp/c.cpp",
     "output": "c.o"
 }
+,
+{
+    "directory": "/tmp/",
+    "command": "clang -I 'a b c' -I \"d e h\"",
+    "file": "/tmp/d.cpp"
+}
 ]
