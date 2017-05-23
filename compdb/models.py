@@ -68,9 +68,18 @@ class CompilationDatabaseInterface(object):
     def get_all_files(self):
         """Return an iterable of path strings.
 
-        A same path can be returned multiple times,
-        store the result in a set if uniqueness is required."""
+        It is ok to return the same path multiple times
+        unless all_files_unique() returns True.
+        """
         raise compdb.NotImplementedError
+
+    def all_files_unique(self):
+        """Whether or not get_all_files() returns unique paths.
+
+        Override this if get_all_files() is guaranteed to return unique paths,
+        this fact can be used for optimization.
+        """
+        return False
 
     def get_all_compile_commands(self):
         """Return an iterable of CompileCommand."""
