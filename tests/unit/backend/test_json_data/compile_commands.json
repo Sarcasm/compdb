@@ -13,5 +13,11 @@
     "directory": "/tmp/",
     "arguments": [ "clang", "-DB=2" ],
     "file": "/tmp/b.cpp"
+},
+{
+    "directory": "/tmp/",
+    "arguments": [ "clang", "-DC=1" ],
+    "file": "/tmp/c.cpp",
+    "output": "c.o"
 }
 ]

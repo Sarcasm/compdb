@@ -43,7 +43,8 @@ class JSONCompilationDatabase(CompilationDatabaseInterface):
             # PERFORMANCE: I think shlex is inherently slow,
             # something performing better may be necessary
             arguments = shlex.split(d['command'])
-        return CompileCommand(d['directory'], d['file'], arguments)
+        return CompileCommand(d['directory'], d['file'], arguments,
+                              d.get('output'))
 
     @property
     def _data(self):
@@ -75,14 +76,18 @@ def str_to_json(s):
 
 
 def compile_command_to_json(compile_command):
+    output_str = ""
+    if compile_command.output:
+        output_str = ',\n  "output": {}'.format(
+            str_to_json(compile_command.output))
     return r'''{{
   "directory": {},
   "command": {},
-  "file": {}
+  "file": {}{}
 }}'''.format(
         str_to_json(compile_command.directory),
         arguments_to_json(compile_command.arguments),
-        str_to_json(compile_command.file))
+        str_to_json(compile_command.file), output_str)
 
 
 class JSONCompileCommandSerializer(object):

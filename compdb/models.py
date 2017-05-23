@@ -15,24 +15,26 @@ class ProbeError(LookupError, compdb.CompdbError):
 
 
 class CompileCommand:
-    def __init__(self, directory, file, arguments):
+    def __init__(self, directory, file, arguments, output=None):
         self.directory = directory
         self.file = file
         self.arguments = arguments
+        self.output = output
 
     @property
     def normfile(self):
         return os.path.normpath(os.path.join(self.directory, self.file))
 
     def __repr__(self):
-        return "{{directory: {},\nfile: {},\n arguments: {}}}\n\n".format(
-            self.directory, self.file, pprint.pformat(self.arguments))
+        return "{{directory: {}, file: {}, arguments: {}, output: {}}}".format(
+            repr(self.directory),
+            repr(self.file), pprint.pformat(self.arguments), repr(self.output))
 
     def __str__(self):
         return self.__repr__()
 
     def _as_tuple(self):
-        return (self.directory, self.file, self.arguments)
+        return (self.directory, self.file, self.arguments, self.output)
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):

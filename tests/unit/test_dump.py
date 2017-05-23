@@ -35,6 +35,7 @@ ARGUMENTS_TO_JSON_DATA = [
 COMPILE_COMMANDS_TO_JSON_DATA = ([
     CompileCommand("/tmp", "foo.cpp", ["clang++"]),
     CompileCommand("/tmp/bar", "bar.cpp", ["clang++", "-std=c++11"]),
+    CompileCommand("/tmp/foo", "foo.cpp", ["clang++", "-std=c++11"], "foo.o"),
 ], r"""[
 {
   "directory": "/tmp",
@@ -46,6 +47,13 @@ COMPILE_COMMANDS_TO_JSON_DATA = ([
   "directory": "/tmp/bar",
   "command": "clang++ -std=c++11",
   "file": "bar.cpp"
+},
+
+{
+  "directory": "/tmp/foo",
+  "command": "clang++ -std=c++11",
+  "file": "foo.cpp",
+  "output": "foo.o"
 }
 ]
 """)

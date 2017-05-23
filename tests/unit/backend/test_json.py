@@ -31,6 +31,11 @@ class JSONCompilationDatabaseTest(unittest.TestCase):
         self.assertEqual(b_commands[1],
                          CompileCommand("/tmp/", "/tmp/b.cpp",
                                         ["clang", "-DB=2"]))
+        c_commands = list(self.db.get_compile_commands("/tmp/c.cpp"))
+        self.assertEqual(len(c_commands), 1)
+        self.assertEqual(c_commands[0],
+                         CompileCommand("/tmp/", "/tmp/c.cpp",
+                                        ["clang", "-DC=1"], "c.o"))
 
     def test_get_all_files(self):
         files = list(sorted(self.db.get_all_files()))
@@ -41,4 +46,5 @@ class JSONCompilationDatabaseTest(unittest.TestCase):
                 '/tmp/b.cpp',
                 # note: it's debatable whether duplicates should be present
                 '/tmp/b.cpp',
+                '/tmp/c.cpp',
             ])
