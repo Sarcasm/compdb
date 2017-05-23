@@ -1,0 +1,17 @@
+[
+{
+    "directory": "/tmp/",
+    "command": "clang -DA=1",
+    "file": "/tmp/a.cpp"
+},
+{
+    "directory": "/tmp/",
+    "arguments": [ "clang", "-DB=1" ],
+    "file": "/tmp/b.cpp"
+},
+{
+    "directory": "/tmp/",
+    "arguments": [ "clang", "-DB=2" ],
+    "file": "/tmp/b.cpp"
+}
+]

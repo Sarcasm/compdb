@@ -33,14 +33,17 @@ class JSONCompilationDatabase(CompilationDatabaseInterface):
                 os.path.join(entry['directory'], entry['file']))
 
     def get_all_compile_commands(self):
-        # PERFORMANCE: I think shlex is inherently slow,
-        # something performing better may be necessary
         return map(self._dict_to_compile_command, self._data)
 
     @staticmethod
     def _dict_to_compile_command(d):
-        return CompileCommand(d['directory'], d['file'],
-                              shlex.split(d['command']))
+        if 'arguments' in d:
+            arguments = d['arguments']
+        else:
+            # PERFORMANCE: I think shlex is inherently slow,
+            # something performing better may be necessary
+            arguments = shlex.split(d['command'])
+        return CompileCommand(d['directory'], d['file'], arguments)
 
     @property
     def _data(self):

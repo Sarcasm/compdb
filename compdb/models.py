@@ -20,6 +20,10 @@ class CompileCommand:
         self.file = file
         self.arguments = arguments
 
+    @property
+    def normfile(self):
+        return os.path.normpath(os.path.join(self.directory, self.file))
+
     def __repr__(self):
         return "{{directory: {},\nfile: {},\n arguments: {}}}\n\n".format(
             self.directory, self.file, pprint.pformat(self.arguments))
@@ -27,9 +31,16 @@ class CompileCommand:
     def __str__(self):
         return self.__repr__()
 
-    @property
-    def normfile(self):
-        return os.path.normpath(os.path.join(self.directory, self.file))
+    def _as_tuple(self):
+        return (self.directory, self.file, self.arguments)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self._as_tuple() == other._as_tuple()
+        return NotImplemented
+
+    def __ne__(self, other):
+        return not self == other
 
 
 class CompilationDatabaseInterface(object):
@@ -53,7 +64,10 @@ class CompilationDatabaseInterface(object):
         raise compdb.NotImplementedError
 
     def get_all_files(self):
-        """Return an iterable of path strings."""
+        """Return an iterable of path strings.
+
+        A same path can be returned multiple times,
+        store the result in a set if uniqueness is required."""
         raise compdb.NotImplementedError
 
     def get_all_compile_commands(self):
