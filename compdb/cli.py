@@ -2,6 +2,7 @@ from __future__ import print_function, unicode_literals, absolute_import
 
 import argparse
 import io
+import logging
 import os
 import sys
 import textwrap
@@ -476,6 +477,12 @@ def main(argv=None):
         formatter_class=SubcommandHelpFormatter)
 
     parser.add_argument(
+        '--trace',
+        help="Trace execution",
+        action="store_const",
+        dest="loglevel",
+        const=logging.INFO)
+    parser.add_argument(
         '-c',
         dest='config_overrides',
         metavar='NAME[=VALUE]',
@@ -539,6 +546,7 @@ def main(argv=None):
     # useful to show to the user instead of an error because of missing
     # subcommand
     args = parser.parse_args(argv or sys.argv[1:] or ["help"])
+    logging.basicConfig(level=args.loglevel or logging.WARNING)
     config = compdb.config.LazyTypedConfig(config_schema)
 
     if args.config_overrides:

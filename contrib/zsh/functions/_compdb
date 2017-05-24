@@ -132,6 +132,7 @@ _compdb() {
     # TODO: smart completion of -c argument: section.option=value
     '*-c[set value of configuration variable NAME for this invocation]:key:'
     '*-p[build path]:build directory:_files -/'
+    '--trace[trace execution]'
   )
 
   local curcontext="$curcontext" state line
