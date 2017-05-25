@@ -477,6 +477,12 @@ def main(argv=None):
         formatter_class=SubcommandHelpFormatter)
 
     parser.add_argument(
+        '--debug',
+        help="Turn on debug logs for the specified modules",
+        dest="debug_loggers",
+        action='append',
+        default=[])
+    parser.add_argument(
         '--trace',
         help="Trace execution",
         action="store_const",
@@ -547,6 +553,8 @@ def main(argv=None):
     # subcommand
     args = parser.parse_args(argv or sys.argv[1:] or ["help"])
     logging.basicConfig(level=args.loglevel or logging.WARNING)
+    for logger_name in args.debug_loggers:
+        logging.getLogger(logger_name).setLevel(logging.DEBUG)
     config = compdb.config.LazyTypedConfig(config_schema)
 
     if args.config_overrides:
