@@ -162,6 +162,7 @@ def score_other_file(a, b):
     """Score the similarity of the given file to the other file.
 
     Paths are expected absolute and normalized.
+    Note that the score can be a negative value.
     """
     a_dir, a_filename = os.path.split(os.path.splitext(a)[0])
     a_subwords = subword_split(a_filename)
