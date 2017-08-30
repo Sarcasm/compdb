@@ -509,7 +509,7 @@ def main(argv=None):
         title='available commands', metavar='<command>', dest='command')
     subparsers.dest = 'command'
     # subcommand seems to be required by default in python 2.7 but not 3.5,
-    # forcing it to true limit the differences between the two
+    # forcing it to true limits the differences between the two
     subparsers.required = True
 
     env = Environment()
