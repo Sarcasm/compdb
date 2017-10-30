@@ -76,3 +76,14 @@ def get_friendly_path(path):
     else:
         friendly_path = rel_path
     return friendly_path
+
+
+def locate_dominating_file(name, start_dir=os.curdir):
+    curdir = os.path.abspath(start_dir)
+    olddir = None
+    while not curdir == olddir:
+        if os.path.exists(os.path.join(curdir, name)):
+            return curdir
+        olddir = curdir
+        curdir = os.path.dirname(curdir)
+    return None

@@ -52,13 +52,15 @@ From Github, as user::
 
   pip install --user git+https://github.com/Sarcasm/compdb.git#egg=compdb
 
-For development::
 
-  pip install --user -e .
+Generating a compilation database including header files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-With setuptools::
+Assuming a build directory ``build/``, containing a ``compile_commands.json``,
+a new compilation database, containing the header files,
+can be generated with::
 
-  python setup.py install
+  compdb list -p build/ > compile_commands.json
 
 
 Running the tests

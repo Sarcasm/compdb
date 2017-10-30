@@ -32,8 +32,8 @@ class ComplementerCacheNotFound(ComplementerError):
 class ComplementerNameError(ComplementerError):
     def __init__(self, complementer):
         super(ComplementerNameError, self).__init__(
-            complementer,
-            "Invalid complementer name: '{}'".format(complementer.name))
+            complementer, "Invalid complementer name: '{}'".format(
+                complementer.name))
 
 
 def _chain_get_compile_commands(databases, filepath):

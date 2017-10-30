@@ -9,7 +9,8 @@ import unittest
 from compdb.backend.memory import InMemoryCompilationDatabase
 from compdb.complementer.headerdb import (
     Complementer,
-    subword_split, )
+    subword_split,
+)
 from compdb.models import CompileCommand
 
 

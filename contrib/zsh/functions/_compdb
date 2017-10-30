@@ -14,98 +14,12 @@ _compdb-version() {
     '--short[machine readable version]'
 }
 
-(( $+functions[_compdb-config-print-user-conf] )) ||
-_compdb-config-print-user-conf() {
-  _arguments '(- :)'{-h,--help}'[show help message and exit]'
-}
-
-(( $+functions[_compdb-config-print-local-conf] )) ||
-_compdb-config-print-local-conf() {
-  _arguments '(- :)'{-h,--help}'[show help message and exit]'
-}
-
-(( $+functions[_compdb-config-list] )) ||
-_compdb-config-list() {
-  _arguments '(- :)'{-h,--help}'[show help message and exit]'
-}
-
-(( $+functions[_compdb-config-dump] )) ||
-_compdb-config-dump() {
-  _arguments '(- :)'{-h,--help}'[show help message and exit]'
-}
-
-# TODO: dynamic completion based on 'compdb config list' output
-(( $+functions[_compdb-config-get] )) ||
-_compdb-config-get() {
-  _arguments \
-    '(- :)'{-h,--help}'[show help message and exit]' \
-    '(-):key::'
-}
-
-(( $+functions[_compdb-config] )) ||
-_compdb-config() {
-  local curcontext="$curcontext" state line
-  typeset -A opt_args
-  _arguments -C -S : \
-             '(- :)'{-h,--help}'[show help message and exit]' \
-             '(-): :->command' \
-             '(-)*:: :->option-or-argument' && return
-
-  case $state in
-    (command)
-      local -a subcommands
-      subcommands=(
-        print-user-conf:'print the user configuration path'
-        print-local-conf:'print the project local configuration'
-        list:'list all the configuration keys'
-        dump:'dump effective configuration'
-        get:'get configuration variable effective value'
-      )
-      _describe -t commands 'command' subcommands
-      ;;
-
-    (option-or-argument)
-      integer ret=1
-      curcontext=${curcontext%:*:*}:compdb-config-$words[1]:
-
-      if ! _call_function ret _compdb-config-$words[1]; then
-        if zstyle -T :completion:$curcontext: use-fallback; then
-          _default && ret=0
-        else
-          _message "unknown config command: $words[1]"
-        fi
-      fi
-      return $ret
-      ;;
-  esac
-}
-
 (( $+functions[_compdb-list] )) ||
 _compdb-list() {
   _arguments \
     '(- :)'{-h,--help}'[show help message and exit]' \
     '(-1 --unique)'{-1,--unique}'[restrict results to a single entry per file]' \
-    '(-):source file:_files -g \*.\(c\|h\|cc\|hh\|cpp\|hpp\|cxx\|hxx\|c\+\+\|h\+\+\)'
-}
-
-(( $+functions[_compdb-scan-files] )) ||
-_compdb-scan-files() {
-  _arguments \
-    '(- :)'{-h,--help}'[show help message and exit]' \
-    '(-g --groups)'{-g,--groups=}'[restrict search to files of the groups]: :_values -s , "group(s)" header source' \
-    '*--suppressions-file[add suppress patterns from file]:file:_files -g \*.supp' \
-    '*--suppress[ignore files matching the given pattern]:pattern:' \
-    '(-):path:_files -/'
-}
-
-(( $+functions[_compdb-check] )) ||
-_compdb-check() {
-  _compdb-scan-files
-}
-
-(( $+functions[_compdb-update] )) ||
-_compdb-update() {
-  _arguments '(- :)'{-h,--help}'[show help message and exit]'
+    '(-)*:source file:_files -g \*.\(c\|h\|cc\|hh\|cpp\|hpp\|cxx\|hxx\|c\+\+\|h\+\+\)'
 }
 
 (( $+functions[__compdb_commands] )) ||
@@ -113,12 +27,8 @@ _compdb_commands() {
   local -a commands
 
   commands=(
-    check:"report files absent from the compilation database"
-    config:"get directory and global configuration options"
     help:"display this help"
     list:"list database entries"
-    scan-files:"scan directory for source files"
-    update:"update or update complementary databases"
     version:"display this version of compdb"
   )
 
@@ -129,8 +39,6 @@ _compdb() {
   local -a base_opts
   base_opts=(
     '(- :)'{-h,--help}'[show help message and exit]'
-    # TODO: smart completion of -c argument: section.option=value
-    '*-c[set value of configuration variable NAME for this invocation]:key:'
     '*-p[build path]:build directory:_files -/'
     '--trace[trace execution]'
   )

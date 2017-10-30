@@ -6,7 +6,7 @@ cd $(dirname "${BASH_SOURCE[0]}")
 
 compdb --help > all-helps.txt.new
 
-compdb help | grep "^  " | while read command descr; do
+compdb help | grep "^  [^-]" | while read command descr; do
   echo
   echo
   echo "# $command"
@@ -24,9 +24,11 @@ consider updating the following file:
 
     functions/_compdb
 
-To remove this notice, update 'all-helps.output':
+To remove this notice, update 'all-helps.txt':
 
-    cp all-helps.output.new all-helps.output
+    pushd $(pwd)
+    cp all-helps.txt.new all-helps.txt
+    popd
 EOF
     exit 1
 fi

@@ -23,8 +23,8 @@ class JSONCompilationDatabase(CompilationDatabaseInterface):
     def get_compile_commands(self, filepath):
         filepath = os.path.abspath(filepath)
         for elem in self._data:
-            if os.path.abspath(
-                    os.path.join(elem['directory'], elem['file'])) == filepath:
+            if os.path.abspath(os.path.join(elem['directory'],
+                                            elem['file'])) == filepath:
                 yield self._dict_to_compile_command(elem)
 
     def get_all_files(self):

@@ -9,7 +9,8 @@ except ImportError:
 
 from compdb.backend.json import (
     arguments_to_json,
-    compile_commands_to_json, )
+    compile_commands_to_json,
+)
 from compdb.models import CompileCommand
 
 # command: The compile command executed. After JSON unescaping, this must be a

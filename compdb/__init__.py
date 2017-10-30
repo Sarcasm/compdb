@@ -5,7 +5,8 @@ from compdb.__about__ import (
     __url__,
     __desc__,
     __prog__,
-    __version__, )
+    __version__,
+)
 
 __all__ = [
     '__author__',

@@ -1,241 +1,96 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
 import argparse
-import io
 import logging
 import os
 import sys
-import textwrap
 
 import compdb.backend.json
-import compdb.config
-import compdb.complementer.headerdb
-from compdb.__about__ import (__desc__, __prog__, __version__)
-from compdb import (filelist, utils)
+import compdb.includedb
+import compdb.utils as utils
+
+from compdb.__about__ import (__prog__, __version__)
 from compdb.backend.json import JSONCompileCommandSerializer
 from compdb.core import CompilationDatabase
 
 
-# http://python-3-patterns-idioms-test.readthedocs.org/en/latest/Metaprogramming.html#example-self-registration-of-subclasses
-class CommandRegistry(type):
-    def __init__(self, name, bases, nmspc):
-        super(CommandRegistry, self).__init__(name, bases, nmspc)
-        if not hasattr(self, 'registry'):
-            self.registry = set()
-        # keep only leaf classes
-        self.registry -= set(bases)
-        self.registry.add(self)
-
-    def __iter__(self):
-        return iter(sorted(self.registry, key=lambda c: c.name))
-
-    def __str__(self):
-        if self in self.registry:
-            return self.__name__
-        return self.__name__ + ": " + ", ".join([sc.__name__ for sc in self])
-
-
-if sys.version_info[0] < 3:
-
-    class RegisteredCommand():
-        __metaclass__ = CommandRegistry
-else:
-    # Probably a bad idea but the syntax is incompatible in python2
-    exec('class RegisteredCommand(metaclass=CommandRegistry): pass')
-
-
-class Environment(object):
+class Config(object):
     def __init__(self):
-        self.__complementers = {}
+        self.build_directory_patterns = []
 
-    def register_complementer(self, name, cls):
-        self.__complementers[name] = cls
-
-    def get_complementer(self, name):
-        return self.__complementers[name]
-
-
-class CommandBase(RegisteredCommand):
-    def __init__(self):
-        self.env = None
-        self.config = None
-        self.args = None
-        self._database = None
-
-    def set_env(self, env):
-        self.env = env
-
-    def set_config(self, config):
-        self.config = config
-
-    def set_args(self, args):
-        self.args = args
-
-    def get_database_classes(self):
-        return [compdb.backend.json.JSONCompilationDatabase]
-
-    def make_unpopulated_database(self):
-        db = CompilationDatabase()
-        for database_cls in self.get_database_classes():
-            db.register_backend(database_cls)
-        for complementer_name in (self.config.compdb.complementers or []):
-            complementer_cls = self.env.get_complementer(complementer_name)
-            db.add_complementer(complementer_name, complementer_cls())
-        return db
-
-    def populate_database(self, database):
-        try:
-            if self.args.build_paths:
-                database.add_directories(self.args.build_paths)
-            elif self.config.compdb.build_dir:
-                database.add_directory_patterns(self.config.compdb.build_dir)
-        except compdb.models.ProbeError as e:
-            print("error: invalid database(s): {}".format(e), file=sys.stderr)
-            sys.exit(1)
-
-    def make_database(self):
-        db = self.make_unpopulated_database()
-        self.populate_database(db)
-        return db
+    @property
+    def compdb_dir(self):
+        # 1. check provided as command line flag --compdb-dir=<dir>
+        # 2. check provided by environment variable $COMPDB_DIR
+        # 3. locate .compdb directory by walking up filesystem
+        # 4. walk up filesystem
+        #    - probe db from curdir: e.g. compile_commands.json
+        #    - or from build directories specified in global config: e.g.
+        #      build/compile_commands.json
+        #
+        # TODO: CompilationDatabase.probe_directory()
+        return utils.locate_dominating_file('compile_commands.json')
 
 
-class HelpCommand(CommandBase):
+class Command(object):
+    def execute(self, config, args):
+        raise NotImplementedError
+
+
+class HelpCommand(Command):
     name = 'help'
-    help_short = 'display this help'
+    help_short = 'show general or command help'
 
-    def execute(self):
-        print('compdb: {}'.format(__desc__))
-        print()
-        print('usage: compdb [general options] '
-              'command [command options] [command arguments]')
-        print()
-        print('available commands:')
-        command_max_len = max(map(len, [c.name for c in RegisteredCommand]))
-        for c in RegisteredCommand:
-            print("    {c.name:<{max_len}}   {c.help_short}".format(
-                c=c, max_len=command_max_len))
-
-
-class VersionCommand(CommandBase):
-    name = 'version'
-    help_short = 'display this version of {}'.format(__prog__)
-
-    @classmethod
-    def options(cls, parser):
+    def execute(self, config, argv):
+        parser = argparse.ArgumentParser(
+            prog='{} {}'.format(__prog__, self.name),
+            description=self.help_short)
         parser.add_argument(
-            '--short', action='store_true', help='machine readable version')
-
-    def execute(self):
-        if self.args.short:
-            print(__version__)
+            'command',
+            nargs='?',
+            help='show help information for COMMAND, i.e. '
+            '`compdb COMMAND --help`')
+        args = parser.parse_args(argv)
+        command_registry = CommandRegistry(config)
+        if args.command:
+            try:
+                command_cls = command_registry.get(args.command)
+            except:
+                parser.error('unrecognized command: {}'.format(args.command))
+            command = command_cls()
+            command.execute(config, ['--help'])
         else:
-            print(__prog__, "version", __version__)
+            # `compdb help` calls `compdb --help`
+            main(['--help'])
 
 
-class ConfigCommand(CommandBase):
-    name = 'config'
-    help_short = 'get directory and global configuration options'
-
-    @classmethod
-    def options(cls, parser):
-        # http://stackoverflow.com/a/18283730/951426
-        # http://bugs.python.org/issue9253#msg186387
-        subparsers = parser.add_subparsers(
-            title='available subcommands',
-            metavar='<subcommand>',
-            dest='subcommand')
-        subparsers.dest = 'subcommand'
-        # subcommand seems to be required by default in python 2.7 but not 3.5,
-        # forcing it to true limit the differences between the two
-        subparsers.required = True
-
-        subparser = subparsers.add_parser(
-            'print-user-conf',
-            help='print the user configuration path',
-            formatter_class=SubcommandHelpFormatter)
-        subparser.set_defaults(config_func=cls.execute_print_user_conf)
-
-        subparser = subparsers.add_parser(
-            'print-local-conf',
-            help='print the project local configuration',
-            formatter_class=SubcommandHelpFormatter)
-        subparser.set_defaults(config_func=cls.execute_print_local_conf)
-
-        subparser = subparsers.add_parser(
-            'list',
-            help='list all the configuration keys',
-            formatter_class=SubcommandHelpFormatter)
-        subparser.set_defaults(config_func=cls.execute_list)
-
-        subparser = subparsers.add_parser(
-            'dump',
-            help='dump effective configuration',
-            formatter_class=SubcommandHelpFormatter)
-        subparser.set_defaults(config_func=cls.execute_dump)
-
-        subparser = subparsers.add_parser(
-            'get',
-            help='get configuration variable effective value',
-            formatter_class=SubcommandHelpFormatter)
-        subparser.set_defaults(config_func=cls.execute_get)
-        subparser.add_argument('key', help='the value to get: SECTION.VAR')
-
-    def execute(self):
-        self.args.config_func(self)
-
-    def execute_print_user_conf(self):
-        print(compdb.config.get_user_conf())
-
-    def execute_print_local_conf(self):
-        local_conf = compdb.config.get_local_conf()
-        if not local_conf:
-            print("error: local configuration not found", file=sys.stderr)
-            sys.exit(1)
-        print(local_conf)
-
-    def execute_list(self):
-        for key in sorted(self.config.options()):
-            print(key)
-
-    def execute_get(self):
-        section, option = compdb.config.parse_key(self.args.key)
-        section = getattr(self.config, section)
-        print(getattr(section, option))
-
-    def execute_dump(self):
-        self.config.get_effective_configuration().write(sys.stdout)
-
-
-class ListCommand(CommandBase):
+class ListCommand(Command):
     name = 'list'
     help_short = 'list database entries'
 
-    @classmethod
-    def options(cls, parser):
+    def execute(self, config, argv):
+        parser = argparse.ArgumentParser(
+            prog='{} {}'.format(__prog__, self.name),
+            description=self.help_short)
         parser.add_argument(
             '-1',
             '--unique',
             action='store_true',
             help='restrict results to a single entry per file')
         parser.add_argument(
-            'files', nargs='*', help='restrict results to a list of files')
-
-    def _gen_results(self):
-        database = self.make_database()
-        for file in self.args.files or [None]:
-            if file:
-                compile_commands = database.get_compile_commands(
-                    file, unique=self.args.unique)
-            else:
-                compile_commands = database.get_all_compile_commands(
-                    unique=self.args.unique)
-            yield (file, compile_commands)
-
-    def execute(self):
+            'files',
+            metavar='file',
+            nargs='*',
+            help='restrict results to a list of files')
+        args = parser.parse_args(argv)
         has_missing_files = False
+        database = self._make_database(config)
+        builder = compdb.includedb.IncludeIndexBuilder()
+        included_by_database = builder.build(database)
         with JSONCompileCommandSerializer(
                 utils.stdout_unicode_writer()) as serializer:
-            for file, compile_commands in self._gen_results():
+            for file, compile_commands in self._gen_results(
+                    database, included_by_database, args):
                 has_compile_command = False
                 for compile_command in compile_commands:
                     serializer.serialize(compile_command)
@@ -248,328 +103,182 @@ class ListCommand(CommandBase):
         if has_missing_files:
             sys.exit(1)
 
-
-class UpdateCommand(CommandBase):
-    name = 'update'
-    help_short = 'update or create complementary databases'
-
-    def execute(self):
-        if not self.config.compdb.complementers:
+    def _make_database(self, config):
+        backend_registry = BackendRegistry(config)
+        database = CompilationDatabase()
+        for database_cls in backend_registry.iter():
+            database.register_backend(database_cls)
+        try:
+            if config.build_directory_patterns:
+                database.add_directory_patterns(
+                    config.build_directory_patterns)
+            else:
+                database.add_directory(config.compdb_dir)
+        except compdb.models.ProbeError as e:
             print(
-                'error: no complementers configured '
-                '(config compdb.complementers)',
+                "{} {}: error: invalid database(s): {}".format(
+                    __prog__, self.name, e),
                 file=sys.stderr)
             sys.exit(1)
+        return database
 
-        database = self.make_unpopulated_database()
-        database.raise_on_missing_cache = False
-        self.populate_database(database)
-
-        for state, update in database.update_complements():
-            if state == 'begin':
-                print('Start {complementer}:'.format(**update))
-            elif state == 'end':
-                pass  # no visual feedback on purpose for this one
-            elif state == 'saving':
-                print("  OUT {file}".format(**update))
-            else:
-                print("unsupported: {}: {}".format(state, update))
-
-
-def _get_suppressions_patterns_from_file(path):
-    patterns = []
-    with io.open(path, 'r', encoding='utf-8') as f:
-        for line in f:
-            pattern = line.partition('#')[0].rstrip()
-            if pattern:
-                patterns.append(pattern)
-    return patterns
+    def _gen_results(self, database, included_by_database, args):
+        if not args.files:
+            yield (None, database.get_all_compile_commands(unique=args.unique))
+            yield (None, included_by_database.get_all_compile_commands())
+            return
+        for file in args.files:
+            compile_commands = database.get_compile_commands(
+                file, unique=args.unique)
+            is_empty, compile_commands = utils.empty_iterator_wrap(
+                compile_commands)
+            if is_empty:
+                path = os.path.abspath(file)
+                compile_commands = included_by_database.get_compile_commands(
+                    path)
+            yield (file, compile_commands)
 
 
-def _make_file_scanner(config, args):
-    scanner = filelist.FileScanner()
-    scanner.add_suppressions(args.suppress)
-    scanner.add_suppressions(config.scan_files.suppress or [])
-    for supp_file in args.suppressions_file:
-        scanner.add_suppressions(
-            _get_suppressions_patterns_from_file(supp_file))
-    for supp_file in (config.scan_files.suppressions_files or []):
-        scanner.add_suppressions(
-            _get_suppressions_patterns_from_file(supp_file))
-    groups = args.groups.split(',')
-    for group in groups:
-        scanner.enable_group(group)
-    return scanner
+class VersionCommand(Command):
+    name = 'version'
+    help_short = 'display this version of {}'.format(__prog__)
 
-
-class ScanFilesCommand(CommandBase):
-    name = 'scan-files'
-    help_short = 'scan directory for source files'
-    help_detail = """
-    Lookup given paths for source files.
-
-    Source files includes C, C++ files, headers, and more.
-    """
-
-    @classmethod
-    def config_schema(cls, schema):
-        schema.register_path_list('suppressions-files',
-                                  'files containing suppress patterns')
-        schema.register_string_list('suppress',
-                                    'ignore files matching these patterns')
-
-    @classmethod
-    def options(cls, parser):
+    def execute(self, config, argv):
+        parser = argparse.ArgumentParser(
+            prog='{} {}'.format(__prog__, self.name),
+            description=self.help_short)
         parser.add_argument(
-            '--suppress',
-            metavar='pattern',
-            action='append',
-            default=[],
-            help='ignore files matching the given pattern')
-        parser.add_argument(
-            '--suppressions-file',
-            metavar='file',
-            action='append',
-            default=[],
-            help='add suppress patterns from file')
-        parser.add_argument(
-            '-g',
-            '--groups',
-            help="restrict search to files of the groups [source,header]",
-            default="source,header")
-        parser.add_argument(
-            'path',
-            nargs='*',
-            default=["."],
-            help="search path(s) (default: %(default)s)")
-
-    def execute(self):
-        scanner = _make_file_scanner(self.config, self.args)
-        # join is to have a path separator at the end
-        prefix_to_skip = os.path.join(os.path.abspath('.'), '')
-        for path in scanner.scan_many(self.args.path):
-            # make descendant paths relative
-            if path.startswith(prefix_to_skip):
-                path = path[len(prefix_to_skip):]
-            print(path)
+            '--short', action='store_true', help='machine readable version')
+        args = parser.parse_args(argv)
+        if args.short:
+            print(__version__)
+        else:
+            print(__prog__, "version", __version__)
 
 
-class CheckCommand(CommandBase):
-    name = 'check'
-    help_short = 'report files absent from the compilation database(s)'
-    help_detail = """
-    Report files that are found in the workspace
-    but not in the compilation database.
-    And files that are in the compilation database
-    but not found in the workspace.
+class CommandRegistry(object):
+    def __init__(self, config):
+        self.config = config
 
-    Exit with status 1 if some file in the workspace
-    aren't found in the compilation database.
-    """
+    def _builtins(self):
+        return [
+            HelpCommand,
+            ListCommand,
+            VersionCommand,
+        ]
 
-    @classmethod
-    def options(cls, parser):
-        ScanFilesCommand.options(parser)
+    def get(self, name):
+        '''Get command class by name.'''
+        for command in self._builtins():
+            if command.name == name:
+                return command
+        raise KeyError(name)
 
-    def execute(self):
-        scanner = _make_file_scanner(self.config, self.args)
-        database = self.make_database()
-        db_files = frozenset(database.get_all_files())
-        list_files = frozenset(scanner.scan_many(self.args.path))
+    def iter_unique(self):
+        '''Iterate over the commands.
 
-        # this only is not a hard error, files may be in system paths or build
-        # directory for example
-        db_only = db_files - list_files
-        if db_only:
-            self._print_set_summary(db_only, "compilation database(s)")
-
-        list_only = list_files - db_files
-
-        if not list_only:
-            sys.exit(0)
-
-        # print difference an exit with error
-        self._print_set_summary(list_only, "project(s)")
-        print(
-            "error: {} file(s) are missing from the compilation database(s)".
-            format(len(list_only)),
-            file=sys.stderr)
-        sys.exit(1)
-
-    @staticmethod
-    def _print_set_summary(files, name):
-        print("Only in {}:".format(name))
-        cwd = os.getcwd()
-        for path in sorted(files):
-            if path.startswith(cwd):
-                pretty_filename = os.path.relpath(path)
-            else:
-                pretty_filename = path
-            print('  {}'.format(pretty_filename))
+        The iteration is done in order: builtin commands first.
+        Duplicates are removed.
+        '''
+        for command in self._builtins():
+            yield command
+        # compdb entry points
+        # example:
+        # https://github.com/python-babel/babel/blob/2f599938b3635dd9b91608fa12d5affb0a743052/babel/messages/extract.py#L301
+        # import pkg_resources
+        # for entry_point in \
+        #       pkg_resources.iter_entry_points('compdb_commands'):
+        #     yield entry_point.name, entry_point.load()
+        # compdb binaries: how to get short description?
+        # extract from `compdb-foo --help` if it starts with:
+        #     compdb <binary-name>: <oneline description>
+        #
+        #     usage:
+        # then compdb-foo binaries
 
 
-# remove the redundant metavar from help output
-#
-#     usage: foo <sub-parser metavar>
-#
-#     <sub-parser title>:
-#       <sub-parser metavar>            # <- remove this
-#         command_a      a description
-#         command_b      b description
-#
-# http://stackoverflow.com/a/13429281/951426
-class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
-    def _format_action(self, action):
-        parts = super(argparse.RawDescriptionHelpFormatter,
-                      self)._format_action(action)
-        if action.nargs == argparse.PARSER:
-            parts = "\n".join(parts.split("\n")[1:])
-        return parts
+class BackendRegistry(object):
+    def __init__(self, config):
+        self.config = config
+
+    def _builtins(self):
+        return [
+            compdb.backend.json.JSONCompilationDatabase,
+        ]
+
+    def iter(self):
+        for backend in self._builtins():
+            yield backend
 
 
-def term_columns():
-    columns = 0
-
-    try:
-        # can happens in tests, when we redirect sys.stdout to a StringIO
-        stdout_fileno = sys.stdout.fileno()
-    except (AttributeError, io.UnsupportedOperation):
-        # fileno() is an AttributeError on Python 2 for StringIO.StringIO
-        # and io.UnsupportedOperation in Python 3 for io.StringIO
-        stdout_fileno = None
-
-    if stdout_fileno is not None and os.isatty(stdout_fileno):
-        try:
-            columns = int(os.environ["COLUMNS"])
-        except (KeyError, ValueError):
-            try:
-                import fcntl, termios, struct  # noqa: E401
-                columns = struct.unpack(
-                    'HHHH',
-                    fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ,
-                                struct.pack('HHHH', 0, 0, 0, 0)))[1]
-            except (ImportError, IOError):
-                pass
-    if columns > 0:
-        return columns
-    return 80
-
-
-def _wrap_paragraphs(text, max_width=None):
-    paragraph_width = term_columns()
-    if max_width and paragraph_width > max_width:
-        paragraph_width = max_width
-    if paragraph_width > 2:
-        paragraph_width -= 2
-    paragraphs = text.split('\n\n')
-    return "\n\n".join(
-        [textwrap.fill(p.strip(), width=paragraph_width) for p in paragraphs])
-
-
-def setup(env):
-    env.register_complementer('headerdb',
-                              compdb.complementer.headerdb.Complementer)
+def show_help(parser, command_registry):
+    parser.print_help()
+    print()
+    print('available commands:')
+    all_commands = list(
+        sorted(command_registry.iter_unique(), key=lambda c: c.name))
+    max_len = max(map(len, [c.name for c in all_commands]))
+    for c in all_commands:
+        print("  {c.name:<{max_len}}  {c.help_short}".format(
+            c=c, max_len=max_len))
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description='{}.'.format(__desc__),
-        formatter_class=SubcommandHelpFormatter)
-
-    parser.add_argument(
-        '--debug',
-        help="Turn on debug logs for the specified modules",
-        dest="debug_loggers",
-        action='append',
-        default=[])
-    parser.add_argument(
+        prog=__prog__,
+        description='%(prog)s: the compilation database Swiss army knife',
+        usage='%(prog)s [general options] '
+        'command [command options] [command arguments]',
+        add_help=False)
+    group = parser.add_argument_group('general options')
+    group.add_argument(
+        '-h',
+        '--help',
+        dest='help',
+        action='store_true',
+        help='show this help message and exit')
+    group.add_argument(
         '--trace',
-        help="Trace execution",
-        action="store_const",
-        dest="loglevel",
-        const=logging.INFO)
-    parser.add_argument(
-        '-c',
-        dest='config_overrides',
-        metavar='NAME[=VALUE]',
-        action='append',
-        default=[],
-        help='set value of configuration variable NAME for this invocation')
-    parser.add_argument(
+        dest='loglevel',
+        action='store_const',
+        const=logging.INFO,
+        help='trace execution')
+    group.add_argument(
         '-p',
         dest='build_paths',
-        metavar="BUILD-DIR",
+        metavar="BUILD_DIR",
         action='append',
         default=[],
         help='build path(s)')
+    parser.add_argument('command', nargs='?', help=argparse.SUPPRESS)
+    parser.add_argument(
+        'args', nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
 
-    # http://stackoverflow.com/a/18283730/951426
-    # http://bugs.python.org/issue9253#msg186387
-    subparsers = parser.add_subparsers(
-        title='available commands', metavar='<command>', dest='command')
-    subparsers.dest = 'command'
-    # subcommand seems to be required by default in python 2.7 but not 3.5,
-    # forcing it to true limits the differences between the two
-    subparsers.required = True
+    args = parser.parse_args(argv)
 
-    env = Environment()
-    setup(env)
+    config = Config()
+    config.build_directory_patterns.extend(args.build_paths)
 
-    config_schema = compdb.config.ConfigSchema()
-    compdb_schema = config_schema.get_section_schema('compdb')
-    compdb_schema.register_glob_list('build-dir', 'the build directories')
-    compdb_schema.register_string_list('complementers', 'complementers to use')
-    for command_cls in RegisteredCommand:
-        command_description = command_cls.help_short.capitalize()
-        if not command_description.endswith('.'):
-            command_description += "."
+    command_registry = CommandRegistry(config)
 
-        # Format detail description, line wrap manually so that unlike the
-        # default formatter_class used for subparser we can have
-        # newlines/paragraphs in the detailed description.
-        if hasattr(command_cls, 'help_detail'):
-            command_description += "\n\n"
-            command_description += textwrap.dedent(command_cls.help_detail)
+    if args.help:
+        show_help(parser, command_registry)
+        return
 
-        command_description = textwrap.dedent("""
-        description:
-        """) + _wrap_paragraphs(
-            command_description, max_width=120)
+    if args.command is None:
+        # TODO: short help, welcome screen, detection info?
+        print("compdb-dir: {}\n\n---\n".format(config.compdb_dir))
+        args.command = 'help'
+        args.args = []
 
-        subparser = subparsers.add_parser(
-            command_cls.name,
-            formatter_class=SubcommandHelpFormatter,
-            help=command_cls.help_short,
-            epilog=command_description)
-        if callable(getattr(command_cls, 'options', None)):
-            command_cls.options(subparser)
-        if callable(getattr(command_cls, 'config_schema', None)):
-            section_schema = config_schema.get_section_schema(command_cls.name)
-            command_cls.config_schema(section_schema)
-        subparser.set_defaults(cls=command_cls)
+    try:
+        command_cls = command_registry.get(args.command)
+    except KeyError:
+        parser.error('unrecognized command: {}'.format(args.command))
 
-    # if no option is specified we default to "help" so we have something
-    # useful to show to the user instead of an error because of missing
-    # subcommand
-    args = parser.parse_args(argv or sys.argv[1:] or ["help"])
-    logging.basicConfig(level=args.loglevel or logging.WARNING)
-    for logger_name in args.debug_loggers:
-        logging.getLogger(logger_name).setLevel(logging.DEBUG)
-    config = compdb.config.LazyTypedConfig(config_schema)
+    command = command_cls()
+    command.execute(config, args.args)
 
-    if args.config_overrides:
-        # config_overrides is a list of tuples: (var, value)
-        config_overrides = []
-        for override in args.config_overrides:
-            var, sep, value = override.partition('=')
-            if not sep:
-                value = 'yes'
-            config_overrides.append((var, value))
-        config.set_overrides(config_overrides)
 
-    command = args.cls()
-    command.set_env(env)
-    command.set_config(config)
-    command.set_args(args)
-
-    command.execute()
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))

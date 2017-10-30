@@ -57,19 +57,8 @@ def get_user_conf():
     return os.path.join(config_dir, 'compdb', 'config')
 
 
-def locate_dominating_file(name, start_dir=os.curdir):
-    curdir = os.path.abspath(start_dir)
-    olddir = None
-    while not curdir == olddir:
-        if os.path.exists(os.path.join(curdir, name)):
-            return curdir
-        olddir = curdir
-        curdir = os.path.dirname(curdir)
-    return None
-
-
 def get_local_conf():
-    compdb_dir = locate_dominating_file('.compdb')
+    compdb_dir = compdb.utils.locate_dominating_file('.compdb')
     if compdb_dir:
         return os.path.join(compdb_dir, '.compdb')
     return None
@@ -269,8 +258,10 @@ class LazyTypedConfig():
             if filename else overrides_working_directory
             for filename in self._filenames
         ]
-        return LazyTypedSection(
-            schema, list(reversed(list(zip(sections, directories)))))
+        return LazyTypedSection(schema,
+                                list(
+                                    reversed(list(zip(sections,
+                                                      directories)))))
 
     def __getattr__(self, unsafe_section_name):
         section = unsafe_section_name.replace('_', '-')

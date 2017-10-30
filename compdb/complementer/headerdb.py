@@ -212,7 +212,6 @@ def _make_headerdb1(compile_commands_iter, db_files, db_idx, header_mapping):
         src_file = compile_command.normfile
         for quote, filename in get_file_includes(src_file):
             header_abspath = None
-            score = 0
             if quote == '"':
                 candidate = os.path.normpath(
                     os.path.join(implicit_search_path, filename))
@@ -239,8 +238,8 @@ def _make_headerdb1(compile_commands_iter, db_files, db_idx, header_mapping):
                 header_mapping[norm_abspath] = data
             if score > data.score:
                 data.score = score
-                data.compile_command = derive_compile_command(norm_abspath,
-                                                              compile_command)
+                data.compile_command = derive_compile_command(
+                    norm_abspath, compile_command)
                 data.db_idx = db_idx
 
 
