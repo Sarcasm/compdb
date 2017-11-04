@@ -67,6 +67,9 @@ def get_file_includes(path):
     Quote is one of double quote mark '\"' or opening angle bracket '<'.
     """
     includes = []
+    if not os.path.exists(path):
+        return includes
+
     with open(path, "rb") as istream:
         include_pattern = re.compile(
             br'\s*#\s*include\s+(?P<quote>["<])(?P<filename>.+?)[">]')
