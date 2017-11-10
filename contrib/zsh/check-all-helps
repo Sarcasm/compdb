@@ -6,7 +6,7 @@ cd $(dirname "${BASH_SOURCE[0]}")
 
 compdb --help > all-helps.txt.new
 
-compdb help | grep "^  [^-]" | while read command descr; do
+compdb help | grep "^  [a-z]" | while read command descr; do
   echo
   echo
   echo "# $command"

@@ -238,6 +238,13 @@ def main(argv=None):
         action='store_true',
         help='show this help message and exit')
     group.add_argument(
+        '--debug',
+        help="turn on debug logs for the specified modules",
+        dest="loggers_to_debug",
+        metavar='MODULE',
+        action='append',
+        default=[])
+    group.add_argument(
         '--trace',
         dest='loglevel',
         action='store_const',
@@ -255,6 +262,10 @@ def main(argv=None):
         'args', nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
 
     args = parser.parse_args(argv)
+
+    logging.basicConfig(level=args.loglevel or logging.WARNING)
+    for logger_name in args.loggers_to_debug:
+        logging.getLogger(logger_name).setLevel(logging.DEBUG)
 
     config = Config()
     config.build_directory_patterns.extend(args.build_paths)

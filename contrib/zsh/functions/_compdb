@@ -40,6 +40,7 @@ _compdb() {
   base_opts=(
     '(- :)'{-h,--help}'[show help message and exit]'
     '*-p[build path]:build directory:_files -/'
+    '*--debug[turn on debug logs for the specified modules]:module:'
     '--trace[trace execution]'
   )
 

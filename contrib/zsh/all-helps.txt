@@ -3,9 +3,10 @@ usage: compdb [general options] command [command options] [command arguments]
 compdb: the compilation database Swiss army knife
 
 general options:
-  -h, --help    show this help message and exit
-  --trace       trace execution
-  -p BUILD_DIR  build path(s)
+  -h, --help      show this help message and exit
+  --debug MODULE  turn on debug logs for the specified modules
+  --trace         trace execution
+  -p BUILD_DIR    build path(s)
 
 available commands:
   help     show general or command help
