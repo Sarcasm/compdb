@@ -201,6 +201,8 @@ See also https://www.python.org/doc/essays/graphs/
             for compile_command in self.database.get_compile_commands(best):
                 yield compdb.complementer.headerdb.derive_compile_command(
                     path, compile_command)
+                # stop after one compile command
+                break
 
     def get_all_files(self):
         return iter(self.graph.keys())
