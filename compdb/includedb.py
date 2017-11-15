@@ -11,6 +11,12 @@ import compdb.utils
 
 from compdb.models import CompilationDatabaseInterface
 
+try:
+    FileNotFoundError
+except NameError:
+    # py2
+    FileNotFoundError = IOError
+
 logger = logging.getLogger(__name__)
 
 
