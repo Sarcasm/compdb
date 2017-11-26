@@ -141,6 +141,7 @@ See also https://www.python.org/doc/essays/graphs/
     def __init__(self, graph, database):
         self.graph = graph
         self.database = database
+        self.__db_index = None
 
     def __repr__(self):
         return '<IncludedByGraph: graph = {}, database = {}>'.format(
@@ -177,7 +178,7 @@ See also https://www.python.org/doc/essays/graphs/
 
     @property
     def _db_index(self):
-        if not hasattr(self, '__db_index'):
+        if self.__db_index is None:
             self.__db_index = frozenset(self.database.get_all_files())
         return self.__db_index
 

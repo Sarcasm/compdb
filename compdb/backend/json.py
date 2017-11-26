@@ -11,6 +11,7 @@ from compdb.models import (CompileCommand, CompilationDatabaseInterface)
 class JSONCompilationDatabase(CompilationDatabaseInterface):
     def __init__(self, json_db_path):
         self.json_db_path = json_db_path
+        self.__data = None
 
     @classmethod
     def probe_directory(cls, directory):
@@ -48,7 +49,7 @@ class JSONCompilationDatabase(CompilationDatabaseInterface):
 
     @property
     def _data(self):
-        if not hasattr(self, '__data'):
+        if self.__data is None:
             with open(self.json_db_path) as f:
                 self.__data = json.load(f)
         return self.__data
