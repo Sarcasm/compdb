@@ -78,6 +78,18 @@ def get_friendly_path(path):
     return friendly_path
 
 
+def logical_abspath(p):
+    """Same as os.path.abspath,
+    but use the logical current working to expand relative paths.
+    """
+    if os.path.isabs(p):
+        return os.path.normpath(p)
+    cwd = os.getenv('PWD')
+    if cwd and os.path.isabs(cwd) and os.path.samefile(cwd, '.'):
+        return os.path.normpath(os.path.join(cwd, p))
+    return os.path.abspath(p)
+
+
 def locate_dominating_file(name, start_dir=os.curdir):
     curdir = os.path.abspath(start_dir)
     olddir = None
