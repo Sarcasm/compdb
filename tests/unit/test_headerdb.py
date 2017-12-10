@@ -70,7 +70,8 @@ class HeaderDB(unittest.TestCase):
 
         self.assertEqual(1, len(result))
         self.assertEqual('a.hpp', result[0].file)
-        self.assertEqual(['clang++', '-DA=1', '-c', 'a.hpp'], result[0].arguments)
+        self.assertEqual(['clang++', '-DA=1', '-c', 'a.hpp'],
+                         result[0].arguments)
 
     def test_02(self):
         test_srcdir = self.srcdir('test_02')
@@ -86,11 +87,13 @@ class HeaderDB(unittest.TestCase):
         ])
         self.assertEqual(2, len(result))
         self.assertEqual('include/a/a.hpp', result[0].file)
-        self.assertEqual(['clang++', '-Iinclude', '-DA=1', '-c', 'include/a/a.hpp'],
-                         result[0].arguments)
+        self.assertEqual(
+            ['clang++', '-Iinclude', '-DA=1', '-c', 'include/a/a.hpp'],
+            result[0].arguments)
         self.assertEqual('include/b/b.hpp', result[1].file)
-        self.assertEqual(['clang++', '-Iinclude', '-DB=1', '-c', 'include/b/b.hpp'],
-                         result[1].arguments)
+        self.assertEqual(
+            ['clang++', '-Iinclude', '-DB=1', '-c', 'include/b/b.hpp'],
+            result[1].arguments)
 
     def test_03(self):
         test_srcdir = self.srcdir('test_03')
@@ -110,13 +113,17 @@ class HeaderDB(unittest.TestCase):
         ])
         self.assertEqual(4, len(result))
         self.assertEqual('a.hpp', result[0].file)
-        self.assertEqual(['clang++', '-DA=1', '-c', 'a.hpp'], result[0].arguments)
+        self.assertEqual(['clang++', '-DA=1', '-c', 'a.hpp'],
+                         result[0].arguments)
         self.assertEqual('a_private.hpp', result[1].file)
-        self.assertEqual(['clang++', '-DA=1', '-c', 'a_private.hpp'], result[1].arguments)
+        self.assertEqual(['clang++', '-DA=1', '-c', 'a_private.hpp'],
+                         result[1].arguments)
         self.assertEqual('b.hpp', result[2].file)
-        self.assertEqual(['clang++', '-DB=1', '-c', 'b.hpp'], result[2].arguments)
+        self.assertEqual(['clang++', '-DB=1', '-c', 'b.hpp'],
+                         result[2].arguments)
         self.assertEqual('b_private.hpp', result[3].file)
-        self.assertEqual(['clang++', '-DB=1', '-c', 'b_private.hpp'], result[3].arguments)
+        self.assertEqual(['clang++', '-DB=1', '-c', 'b_private.hpp'],
+                         result[3].arguments)
 
     def test_04(self):
         test_srcdir = self.srcdir('test_04')
@@ -132,13 +139,17 @@ class HeaderDB(unittest.TestCase):
         ])
         self.assertEqual(4, len(result))
         self.assertEqual('a.hpp', result[0].file)
-        self.assertEqual(['clang++', '-DA=1', '-c', 'a.hpp'], result[0].arguments)
+        self.assertEqual(['clang++', '-DA=1', '-c', 'a.hpp'],
+                         result[0].arguments)
         self.assertEqual('a.ipp', result[1].file)
-        self.assertEqual(['clang++', '-DA=1', '-c', 'a.ipp'], result[1].arguments)
+        self.assertEqual(['clang++', '-DA=1', '-c', 'a.ipp'],
+                         result[1].arguments)
         self.assertEqual('b.hpp', result[2].file)
-        self.assertEqual(['clang++', '-DB=1', '-c', 'b.hpp'], result[2].arguments)
+        self.assertEqual(['clang++', '-DB=1', '-c', 'b.hpp'],
+                         result[2].arguments)
         self.assertEqual('b.ipp', result[3].file)
-        self.assertEqual(['clang++', '-DB=1', '-c', 'b.ipp'], result[3].arguments)
+        self.assertEqual(['clang++', '-DB=1', '-c', 'b.ipp'],
+                         result[3].arguments)
 
     def test_05(self):
         test_srcdir = self.srcdir('test_05')
@@ -154,9 +165,11 @@ class HeaderDB(unittest.TestCase):
         ])
         self.assertEqual(2, len(result))
         self.assertEqual('latin-1-á.hpp', result[0].file)
-        self.assertEqual(['clang++', '-DLATIN=1', '-c', 'latin-1-á.hpp'], result[0].arguments)
+        self.assertEqual(['clang++', '-DLATIN=1', '-c', 'latin-1-á.hpp'],
+                         result[0].arguments)
         self.assertEqual('utf-8-á.hpp', result[1].file)
-        self.assertEqual(['clang++', '-DUTF=8', '-c', 'utf-8-á.hpp'], result[1].arguments)
+        self.assertEqual(['clang++', '-DUTF=8', '-c', 'utf-8-á.hpp'],
+                         result[1].arguments)
 
     def test_06(self):
         test_srcdir = self.srcdir('test_06')
@@ -168,8 +181,9 @@ class HeaderDB(unittest.TestCase):
         ])
         self.assertEqual(1, len(result))
         self.assertEqual('include/a/a', result[0].file)
-        self.assertEqual(['clang++', '-Iinclude', '-Iinclude/a', '-c', 'include/a/a'],
-                         result[0].arguments)
+        self.assertEqual(
+            ['clang++', '-Iinclude', '-Iinclude/a', '-c', 'include/a/a'],
+            result[0].arguments)
 
     def test_07(self):
         test_srcdir = self.srcdir('test_07')
@@ -185,9 +199,11 @@ class HeaderDB(unittest.TestCase):
         ])
         self.assertEqual(2, len(result))
         self.assertEqual('a.hpp', result[0].file)
-        self.assertEqual(['clang++', '-DB=1', '-I.', '-c', 'a.hpp'], result[0].arguments)
+        self.assertEqual(['clang++', '-DB=1', '-I.', '-c', 'a.hpp'],
+                         result[0].arguments)
         self.assertEqual('quoted_a.hpp', result[1].file)
-        self.assertEqual(['clang++', '-DB=1', '-I.', '-c', 'quoted_a.hpp'], result[1].arguments)
+        self.assertEqual(['clang++', '-DB=1', '-I.', '-c', 'quoted_a.hpp'],
+                         result[1].arguments)
 
 
 if __name__ == "__main__":
