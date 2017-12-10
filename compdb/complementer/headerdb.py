@@ -54,11 +54,14 @@ def mimic_path_relativity(path, other, default_dir):
 
 
 def derive_compile_command(header_file, reference):
+    header_file_relative = mimic_path_relativity(header_file, reference.file,
+                                                 reference.directory)
+    args = sanitize_compile_options(reference)
+    args.extend(["-c", header_file_relative])
     return CompileCommand(
         directory=reference.directory,
-        file=mimic_path_relativity(header_file, reference.file,
-                                   reference.directory),
-        arguments=sanitize_compile_options(reference))
+        file=header_file_relative,
+        arguments=args)
 
 
 def get_file_includes(path):
