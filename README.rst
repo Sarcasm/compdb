@@ -53,8 +53,8 @@ From Github, as user::
   pip install --user git+https://github.com/Sarcasm/compdb.git#egg=compdb
 
 
-Generating a compilation database including header files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Generate a compilation database with header files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Assuming a build directory ``build/``, containing a ``compile_commands.json``,
 a new compilation database, containing the header files,
