@@ -60,7 +60,7 @@ Assuming a build directory ``build/``, containing a ``compile_commands.json``,
 a new compilation database, containing the header files,
 can be generated with::
 
-  compdb list -p build/ > compile_commands.json
+  compdb -p build/ list > compile_commands.json
 
 
 Running the tests
