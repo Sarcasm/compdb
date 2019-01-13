@@ -278,7 +278,6 @@ def main(argv=None):
 
     if args.command is None:
         # TODO: short help, welcome screen, detection info?
-        print("compdb-dir: {}\n\n---\n".format(config.compdb_dir))
         args.command = 'help'
         args.args = []
 
