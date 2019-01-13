@@ -1,6 +1,7 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
 import argparse
+import io
 import logging
 import os
 import sys
@@ -78,17 +79,25 @@ class ListCommand(Command):
             action='store_true',
             help='restrict results to a single entry per file')
         parser.add_argument(
+            '-o',
+            '--output',
+            metavar='file',
+            help='write to file instead of stdout')
+        parser.add_argument(
             'files',
             metavar='file',
             nargs='*',
             help='restrict results to a list of files')
         args = parser.parse_args(argv)
+        if args.output:
+            output_writer = io.open(args.output, 'w', encoding='utf8')
+        else:
+            output_writer = utils.stdout_unicode_writer()
         has_missing_files = False
         database = self._make_database(config)
         builder = compdb.includedb.IncludeIndexBuilder()
         included_by_database = builder.build(database)
-        with JSONCompileCommandSerializer(
-                utils.stdout_unicode_writer()) as serializer:
+        with JSONCompileCommandSerializer(output_writer) as serializer:
             for file, compile_commands in self._gen_results(
                     database, included_by_database, args):
                 has_compile_command = False
@@ -100,6 +109,8 @@ class ListCommand(Command):
                         'error: {}: no such entry'.format(file),
                         file=sys.stderr)
                     has_missing_files = True
+        if args.output:
+            output_writer.close()
         if has_missing_files:
             sys.exit(1)
 
