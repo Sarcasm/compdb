@@ -70,7 +70,14 @@ def stdout_unicode_writer():
 
 def get_friendly_path(path):
     full_path = os.path.normpath(path)
-    rel_path = os.path.relpath(full_path)
+    try:
+        rel_path = os.path.relpath(full_path)
+    except ValueError:
+        # on Windows, we can get a ValueError
+        # if the current directory is on another drive:
+        # > ValueError: path is on drive D:, start on drive C:
+        # > -- https://github.com/Sarcasm/compdb/issues/16
+        return full_path
     if rel_path.startswith(os.path.join(os.pardir, os.pardir)):
         friendly_path = full_path
     else:
