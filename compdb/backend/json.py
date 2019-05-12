@@ -45,7 +45,10 @@ class JSONCompilationDatabase(CompilationDatabaseInterface):
         else:
             # PERFORMANCE: I think shlex is inherently slow,
             # something performing better may be necessary
-            arguments = shlex.split(d['command'])
+            arguments = shlex.split(d['command'],
+                                    # XXX: os.name is "posix" on mysys2/cygwin,
+                                    # is that correct?
+                                    posix=os.name == "posix")
         return CompileCommand(d['directory'], d['file'], arguments,
                               d.get('output'))
 
