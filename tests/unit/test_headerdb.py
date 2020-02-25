@@ -78,21 +78,21 @@ class HeaderDB(unittest.TestCase):
         result = self.complement([
             CompileCommand(
                 directory=test_srcdir,
-                arguments=['clang++', '-Iinclude', '-DA=1'],
+                arguments=['clang++', '-iquote', 'include', '-DA=1'],
                 file='src/a.cpp'),
             CompileCommand(
                 directory=test_srcdir,
-                arguments=['clang++', '-Iinclude', '-DB=1'],
+                arguments=['clang++', '-iquoteinclude', '-DB=1'],
                 file='src/b.cpp'),
         ])
         self.assertEqual(2, len(result))
         self.assertEqual('include/a/a.hpp', result[0].file)
         self.assertEqual(
-            ['clang++', '-Iinclude', '-DA=1', '-c', 'include/a/a.hpp'],
+            ['clang++', '-iquote', 'include', '-DA=1', '-c', 'include/a/a.hpp'],
             result[0].arguments)
         self.assertEqual('include/b/b.hpp', result[1].file)
         self.assertEqual(
-            ['clang++', '-Iinclude', '-DB=1', '-c', 'include/b/b.hpp'],
+            ['clang++', '-iquoteinclude', '-DB=1', '-c', 'include/b/b.hpp'],
             result[1].arguments)
 
     def test_03(self):

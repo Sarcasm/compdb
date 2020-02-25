@@ -90,13 +90,18 @@ def extract_include_dirs(compile_command):
     i = 0
     arguments = sanitize_compile_options(compile_command)
     while i < len(arguments):
-        # -I <dir> and -I<dir>
-        if arguments[i].startswith("-I"):
-            if arguments[i] == "-I":
-                i += 1
-                header_search_path.append(arguments[i])
-            else:
-                header_search_path.append(arguments[i][2:])
+        # -I <dir> and -I<dir> and similar
+        for opt in ["-I", "-isystem", "-iquote", "-B"]:
+            if arguments[i].startswith(opt):
+                include_dir = None
+                if arguments[i] == opt:
+                    i += 1
+                    include_dir = arguments[i]
+                else:
+                    include_dir = arguments[i][len(opt):]
+                if opt == "-B":
+                    include_dir = os.path.join(include_dir, "include")
+                header_search_path.append(include_dir)
         i += 1
     return [
         os.path.join(compile_command.directory, p) for p in header_search_path
