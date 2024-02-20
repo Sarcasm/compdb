@@ -17,6 +17,8 @@ class FileScanner(object):
             '.C++',
             '.cxx',
             '.cpp',
+            '.m',
+            '.mm',
         ]
         self.header_exts = [
             '.h',
